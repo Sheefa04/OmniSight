@@ -1,0 +1,7 @@
+﻿__pycache__/
+*.py[cod]
+.pytest_cache/
+.venv/
+
+backend/test_screenshot.png
+screenshots/test_screenshot.png
