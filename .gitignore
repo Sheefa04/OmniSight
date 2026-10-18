@@ -5,3 +5,7 @@
 
 backend/test_screenshot.png
 screenshots/test_screenshot.png
+
+# Generated inspection screenshots
+backend/screenshots/inspection_*.png
+backend/screenshots/repair_*.png
