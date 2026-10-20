@@ -7,9 +7,9 @@
 
 - **Project Title**: OmniSight: Multimodal UI Self-Healing & RPA Agent
 - **Domain**: Artificial Intelligence, Robotic Process Automation (RPA), Automated Web Quality Engineering
-- **Student**: Arbaj M Jamadar
+- **Student**: Sheefa J Pathan
 - **Degree**: Bachelor of Engineering (B.E.) in Artificial Intelligence and Data Science
-- **Institution**: Department of Artificial Intelligence and Data Science
+- **Institution**: DR. D Y PATIL TECHNICAL CAMPUS
 - **Review Type**: Mid-Term Internship Project Review
 - **Repository**: `https://github.com/Sheefa04/OmniSight.git`
 
