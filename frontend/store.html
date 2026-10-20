@@ -1,0 +1,531 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ShopHub | Everyday Essentials</title>
+
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        :root {
+            --green: #174c42;
+            --green-light: #e5eee6;
+            --background: #f7f8f5;
+            --text: #20352f;
+            --muted: #68766f;
+            --border: #e1e7e0;
+        }
+
+        body {
+            margin: 0;
+            font-family: Arial, Helvetica, sans-serif;
+            color: var(--text);
+            background: var(--background);
+        }
+
+        a {
+            text-decoration: none;
+        }
+
+        .topbar {
+            padding: 10px 6%;
+            text-align: center;
+            background: #123d35;
+            color: white;
+            font-size: 12px;
+            letter-spacing: 0.4px;
+        }
+
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 20px;
+            padding: 22px 6%;
+            background: white;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .logo {
+            color: var(--green);
+            font-size: 27px;
+            font-weight: 800;
+            letter-spacing: -1px;
+        }
+
+        nav {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 24px;
+        }
+
+        nav a {
+            color: var(--text);
+            font-size: 14px;
+        }
+
+        .cart {
+            color: var(--green);
+            font-size: 14px;
+            font-weight: bold;
+        }
+
+        .hero {
+            margin: 28px 6%;
+            padding: 50px;
+            min-height: 260px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 25px;
+            background: var(--green-light);
+            border-radius: 16px;
+        }
+
+        .hero-content {
+            max-width: 540px;
+        }
+
+        .eyebrow {
+            color: var(--green);
+            font-size: 12px;
+            font-weight: bold;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+        }
+
+        .hero h1 {
+            margin: 14px 0;
+            font-size: clamp(30px, 4vw, 48px);
+            line-height: 1.12;
+            letter-spacing: -1.5px;
+        }
+
+        .hero p {
+            color: var(--muted);
+            line-height: 1.7;
+        }
+
+        .hero-art {
+            font-size: 100px;
+            padding: 20px;
+        }
+
+        .button {
+            display: inline-block;
+            margin-top: 12px;
+            padding: 13px 20px;
+            border: none;
+            border-radius: 7px;
+            background: var(--green);
+            color: white;
+            font-size: 14px;
+            cursor: pointer;
+        }
+
+        .shop {
+            padding: 10px 6% 45px;
+        }
+
+        .section-heading {
+            display: flex;
+            justify-content: space-between;
+            align-items: end;
+            gap: 15px;
+            margin: 20px 0;
+        }
+
+        .section-heading h2 {
+            margin: 0 0 7px;
+            font-size: 27px;
+        }
+
+        .section-heading p {
+            margin: 0;
+            color: var(--muted);
+            font-size: 14px;
+        }
+
+        .products {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 22px;
+        }
+
+        .product {
+            min-width: 0;
+            overflow: hidden;
+            background: white;
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            transition: box-shadow 0.2s, transform 0.2s;
+        }
+
+        .product:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 22px #183d3510;
+        }
+
+        .product-image {
+            min-height: 175px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #eef2ec;
+            font-size: 68px;
+        }
+
+        .product-info {
+            padding: 18px;
+        }
+
+        .category {
+            color: var(--muted);
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .product h3 {
+            margin: 9px 0;
+            font-size: 18px;
+        }
+
+        .description {
+            min-height: 38px;
+            margin: 0;
+            color: var(--muted);
+            font-size: 13px;
+            line-height: 1.5;
+        }
+
+        .price-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 10px;
+            margin-top: 17px;
+        }
+
+        .price {
+            font-size: 17px;
+            font-weight: bold;
+        }
+
+        .add-button {
+            padding: 10px 12px;
+            border: none;
+            border-radius: 6px;
+            background: var(--green);
+            color: white;
+            cursor: pointer;
+            font-size: 12px;
+        }
+
+        /* Intentional mobile overflow test case for OmniSight */
+        .broken-button {
+            width: 100%;
+            padding: 12px 28px;
+            white-space: nowrap;
+            font-size: 15px;
+        }
+
+        .notice {
+            display: none;
+            margin-top: 20px;
+            padding: 12px;
+            background: var(--green-light);
+            border-radius: 8px;
+            color: var(--green);
+        }
+
+        footer {
+            padding: 30px 6%;
+            background: #173d35;
+            color: white;
+        }
+
+        .footer-content {
+            display: flex;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 20px;
+        }
+
+        footer p {
+            color: #d0ded6;
+            font-size: 13px;
+            line-height: 1.6;
+        }
+
+        footer a {
+            color: white;
+        }
+
+        @media (max-width: 700px) {
+            header {
+                flex-wrap: wrap;
+                padding: 18px 5%;
+            }
+
+            nav {
+                order: 3;
+                width: 100%;
+                justify-content: space-between;
+                gap: 10px;
+            }
+
+            .hero {
+                margin: 18px 4%;
+                padding: 28px 22px;
+            }
+
+            .hero-art {
+                display: none;
+            }
+
+            .shop {
+                padding-right: 4%;
+                padding-left: 4%;
+            }
+
+            .products {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+                gap: 12px;
+            }
+
+            .product-image {
+                min-height: 125px;
+                font-size: 48px;
+            }
+
+            .product-info {
+                padding: 12px;
+            }
+
+            .product h3 {
+                font-size: 15px;
+            }
+
+            .description {
+                font-size: 12px;
+            }
+
+            .price-row {
+                align-items: flex-start;
+                flex-direction: column;
+            }
+
+            .add-button {
+                width: 100%;
+            }
+
+            /* The Special Offer button intentionally remains unwrapped. */
+            .broken-button {
+                width: 100%;
+                white-space: nowrap;
+                padding: 12px 28px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="topbar">
+        FREE DELIVERY ON SELECTED ORDERS
+    </div>
+
+    <header>
+        <a class="logo" href="#home">ShopHub.</a>
+
+        <nav aria-label="Main navigation">
+            <a href="#home">Home</a>
+            <a href="#products">Shop</a>
+            <a href="#footer">About</a>
+        </nav>
+
+        <div class="cart">
+            Cart (<span id="cart-count">0</span>)
+        </div>
+    </header>
+
+    <section class="hero" id="home">
+        <div class="hero-content">
+            <span class="eyebrow">Made for everyday living</span>
+            <h1>Good finds.<br>Better everyday.</h1>
+            <p>
+                Explore useful essentials for your work, travel,
+                routines and the little moments in between.
+            </p>
+            <a class="button" href="#products">Explore the collection</a>
+        </div>
+
+        <div class="hero-art" aria-hidden="true">🛍️</div>
+    </section>
+
+    <main class="shop" id="products">
+        <div class="section-heading">
+            <div>
+                <h2>Featured products</h2>
+                <p>Everyday picks, all in one place.</p>
+            </div>
+            <span id="product-count">9 products</span>
+        </div>
+
+        <div class="products">
+
+            <article class="product">
+                <div class="product-image">🎧</div>
+                <div class="product-info">
+                    <span class="category">Electronics</span>
+                    <h3>Wireless Headphones</h3>
+                    <p class="description">Comfortable sound for every day.</p>
+                    <div class="price-row">
+                        <span class="price">₹1,499</span>
+                        <button class="add-button" onclick="addToCart('Wireless Headphones')">Add to Cart</button>
+                    </div>
+                </div>
+            </article>
+
+            <article class="product">
+                <div class="product-image">⌚</div>
+                <div class="product-info">
+                    <span class="category">Electronics</span>
+                    <h3>Smart Watch</h3>
+                    <p class="description">Keep track of your daily activity.</p>
+                    <div class="price-row">
+                        <span class="price">₹2,299</span>
+                        <button class="add-button" onclick="addToCart('Smart Watch')">Add to Cart</button>
+                    </div>
+                </div>
+            </article>
+
+            <article class="product">
+                <div class="product-image">🎒</div>
+                <div class="product-info">
+                    <span class="category">Accessories</span>
+                    <h3>Everyday Backpack</h3>
+                    <p class="description">Room for all your daily essentials.</p>
+                    <div class="price-row">
+                        <span class="price">₹999</span>
+                        <button class="add-button broken-button buggy-button" onclick="addToCart('Everyday Backpack')">Add to Cart — Special Offer</button>
+                    </div>
+                </div>
+            </article>
+
+            <article class="product">
+                <div class="product-image">👟</div>
+                <div class="product-info">
+                    <span class="category">Footwear</span>
+                    <h3>Running Shoes</h3>
+                    <p class="description">Lightweight shoes for daily walks.</p>
+                    <div class="price-row">
+                        <span class="price">₹1,899</span>
+                        <button class="add-button" onclick="addToCart('Running Shoes')">Add to Cart</button>
+                    </div>
+                </div>
+            </article>
+
+            <article class="product">
+                <div class="product-image">📷</div>
+                <div class="product-info">
+                    <span class="category">Electronics</span>
+                    <h3>Digital Camera</h3>
+                    <p class="description">Capture your favourite moments.</p>
+                    <div class="price-row">
+                        <span class="price">₹4,999</span>
+                        <button class="add-button" onclick="addToCart('Digital Camera')">Add to Cart</button>
+                    </div>
+                </div>
+            </article>
+
+            <article class="product">
+                <div class="product-image">👜</div>
+                <div class="product-info">
+                    <span class="category">Accessories</span>
+                    <h3>Everyday Handbag</h3>
+                    <p class="description">A simple bag for everyday use.</p>
+                    <div class="price-row">
+                        <span class="price">₹1,299</span>
+                        <button class="add-button" onclick="addToCart('Everyday Handbag')">Add to Cart</button>
+                    </div>
+                </div>
+            </article>
+
+            <article class="product">
+                <div class="product-image">🔊</div>
+                <div class="product-info">
+                    <span class="category">Electronics</span>
+                    <h3>Bluetooth Speaker</h3>
+                    <p class="description">Enjoy music wherever you go.</p>
+                    <div class="price-row">
+                        <span class="price">₹1,099</span>
+                        <button class="add-button" onclick="addToCart('Bluetooth Speaker')">Add to Cart</button>
+                    </div>
+                </div>
+            </article>
+
+            <article class="product">
+                <div class="product-image">⌨️</div>
+                <div class="product-info">
+                    <span class="category">Workspace</span>
+                    <h3>Wireless Keyboard</h3>
+                    <p class="description">A tidy setup for work and study.</p>
+                    <div class="price-row">
+                        <span class="price">₹799</span>
+                        <button class="add-button" onclick="addToCart('Wireless Keyboard')">Add to Cart</button>
+                    </div>
+                </div>
+            </article>
+
+            <article class="product">
+                <div class="product-image">☕</div>
+                <div class="product-info">
+                    <span class="category">Home</span>
+                    <h3>Ceramic Coffee Mug</h3>
+                    <p class="description">Your favourite drink, every morning.</p>
+                    <div class="price-row">
+                        <span class="price">₹349</span>
+                        <button class="add-button" onclick="addToCart('Ceramic Coffee Mug')">Add to Cart</button>
+                    </div>
+                </div>
+            </article>
+
+        </div>
+
+        <div class="notice" id="cart-notice" role="status"></div>
+    </main>
+
+    <footer id="footer">
+        <div class="footer-content">
+            <div>
+                <strong>ShopHub.</strong>
+                <p>A sample storefront for OmniSight UI testing.</p>
+            </div>
+            <div>
+                <strong>Explore</strong>
+                <p><a href="#home">Home</a> · <a href="#products">Products</a></p>
+            </div>
+        </div>
+        <p>Demo website only. Products and prices are illustrative.</p>
+    </footer>
+
+    <script>
+        let cartCount = 0;
+
+        function addToCart(productName) {
+            cartCount += 1;
+
+            document.getElementById("cart-count").textContent = cartCount;
+
+            const notice = document.getElementById("cart-notice");
+            notice.style.display = "block";
+            notice.textContent = productName + " added to demo cart.";
+        }
+    </script>
+</body>
+</html>
