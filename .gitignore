@@ -1,7 +1,10 @@
-﻿__pycache__/
+__pycache__/
 *.py[cod]
 .pytest_cache/
 .venv/
+.venv*/
+backend/.venv*/
+.vscode/
 
 backend/test_screenshot.png
 screenshots/test_screenshot.png
