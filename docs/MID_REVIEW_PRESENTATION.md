@@ -7,7 +7,7 @@
 ### Slide 1: Title & Project Details
 - **Project Title**: OmniSight: Multimodal UI Self-Healing & RPA Agent
 - **Subtitle**: Automated Visual Inspection, Heuristic Issue Detection, and Approved Browser Remediation
-- **Student**: Arbaj M Jamadar
+- **Student**: Sheefa J Pathan
 - **Branch**: B.E. Artificial Intelligence & Data Science
 - **Project Type**: Solo Internship Project
 - **Key Technologies**: Python 3.12, FastAPI, Playwright, Chromium, Modern Vanilla JS/CSS
@@ -151,7 +151,7 @@
 ### Word-for-Word Script:
 
 > **[0:00 - 0:45] Introduction**:
-> "Good morning, respected evaluators. I am Arbaj Jamadar, and I am presenting **OmniSight: Multimodal UI Self-Healing and RPA Agent**.
+> "Good morning, respected evaluators. I am Sheefa Pathan, and I am presenting **OmniSight: Multimodal UI Self-Healing and RPA Agent**.
 > In modern web engineering, responsive websites frequently suffer from visual layout regressions. For example, a button styled for desktop displays can extend past screen boundaries or fail to wrap text when viewed on a mobile device. Functional testing tools like Selenium often pass these tests because the button exists in the DOM, even though users see a broken layout.
 > OmniSight provides an automated loop to inspect websites across viewports, detect visual flaws using computed style heuristics, and safely apply an approved, session-level repair."
 
