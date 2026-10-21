@@ -253,6 +253,6 @@ Run the comprehensive automated test suite:
 
 ## 15. Author
 
-- **Student**: Arbaj M Jamadar
+- **Student**: Sheefa J Pathan
 - **Branch**: BE Artificial Intelligence and Data Science
 - **Project**: OmniSight — Multimodal UI Self-Healing & RPA Agent
