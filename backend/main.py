@@ -20,6 +20,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from pydantic import BaseModel, HttpUrl
 from playwright.async_api import async_playwright, TimeoutError as PlaywrightTimeoutError
+from .repair_sandbox import evaluate_css_candidate
 
 
 # --------------------------------------------------
@@ -78,6 +79,12 @@ class InspectRequest(BaseModel):
 class RepairRequest(BaseModel):
     url: HttpUrl
     approved: bool = False
+
+class SandboxRequest(BaseModel):
+    """Payload for the What‑If Repair Sandbox."""
+    url: HttpUrl                     # target page
+    viewport: str = "375x812"        # same format as other endpoints
+    css: str                         # raw CSS snippet to test
 
 
 # --------------------------------------------------
@@ -438,6 +445,30 @@ if (isBrokenButton) {
         raise HTTPException(
             status_code=500,
             detail="Issue detection failed. Check the backend terminal.",
+        )
+
+    # --------------------------------------------------
+# What‑If Repair Sandbox
+# --------------------------------------------------
+@app.post("/sandbox-evaluate")
+async def sandbox_evaluate(request: SandboxRequest):
+    """
+    Evaluate one or more CSS repair candidates in an isolated
+    Playwright context. Returns measurements and a screenshot for the
+    caller to rank the candidate.
+    """
+    try:
+        result = await evaluate_css_candidate(
+            url=str(request.url),
+            viewport_str=request.viewport,
+            css_snippet=request.css,
+        )
+        return result
+    except Exception as exc:  # unexpected failures
+        logger.exception("Sandbox evaluation failed")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Sandbox evaluation error: {exc}",
         )
 
 
