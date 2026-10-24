@@ -5,7 +5,7 @@ from urllib.parse import urlparse
 from uuid import uuid4
 import logging
 import re
-
+import os
 if sys.platform == "win32":
     asyncio.set_event_loop_policy(asyncio.WindowsProactorEventLoopPolicy())
     try:
@@ -31,6 +31,9 @@ BASE_DIR = Path(__file__).resolve().parent
 SCREENSHOT_DIR = BASE_DIR / "screenshots"
 SCREENSHOT_DIR.mkdir(parents=True, exist_ok=True)
 FRONTEND_DIR = BASE_DIR.parent / "frontend"
+# Additional imports for image comparison
+from PIL import Image, ImageChops
+import uuid
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("omnisight")
@@ -572,6 +575,80 @@ async def repair_ui(request: RepairRequest):
             detail="UI repair failed. Check the backend terminal.",
         )
 
+# --------------------------------------------------
+# Image Comparison Utilities
+# --------------------------------------------------
+
+def _ensure_within_screenshot_dir(filename: str) -> Path:
+    """Validate *filename* is a safe identifier inside ``SCREENSHOT_DIR``.
+
+    - Must be a plain filename (no path separators).
+    - Must not be absolute.
+    - Must not contain ``..`` traversal components.
+    - Must resolve within ``SCREENSHOT_DIR``.
+    """
+    if not isinstance(filename, str) or not filename:
+        raise HTTPException(status_code=400, detail="Invalid screenshot identifier.")
+    # Reject any path separators or parent directory references.
+    if os.path.sep in filename or (os.path.altsep and os.path.altsep in filename):
+        raise HTTPException(status_code=400, detail="Invalid screenshot identifier.")
+    if ".." in filename:
+        raise HTTPException(status_code=400, detail="Invalid screenshot identifier.")
+    candidate = (SCREENSHOT_DIR / filename).resolve()
+    try:
+        candidate.relative_to(SCREENSHOT_DIR.resolve())
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid screenshot identifier.")
+    if not candidate.is_file():
+        raise HTTPException(status_code=404, detail="Screenshot not found.")
+    return candidate
+    # (old implementation removed)
+
+def compare_images(original_path: Path, repaired_path: Path) -> dict:
+    """Pixel‑level comparison of two images.
+    Returns URLs for original, repaired, diff image and percent of changed pixels.
+    """
+    try:
+        orig = Image.open(original_path).convert("RGB")
+        repl = Image.open(repaired_path).convert("RGB")
+    except Exception:
+        raise HTTPException(status_code=400, detail="Failed to open images.")
+    if orig.size != repl.size:
+        raise HTTPException(status_code=400, detail="Images have different dimensions.")
+    diff = ImageChops.difference(orig, repl)
+    diff_data = diff.getdata()
+    total_pixels = orig.width * orig.height
+    diff_pixels = sum(1 for p in diff_data if any(c != 0 for c in p))
+    diff_percent = (diff_pixels / total_pixels) * 100 if total_pixels else 0
+    diff_name = f"diff_{uuid.uuid4().hex[:10]}.png"
+    diff_path = SCREENSHOT_DIR / diff_name
+    if diff_pixels == 0:
+        # No differences – save a copy of the original as diff image
+        orig.save(diff_path)
+    else:
+        diff.save(diff_path)
+    return {
+        "original_url": f"/screenshots/{original_path.name}",
+        "repaired_url": f"/screenshots/{repaired_path.name}",
+        "diff_url": f"/screenshots/{diff_name}",
+        "difference_percent": round(diff_percent, 2),
+        "total_pixels": total_pixels,
+        "different_pixels": diff_pixels,
+        "dimensions": {"width": orig.width, "height": orig.height},
+    }
+
+@app.post("/compare-screenshots")
+async def compare_screenshots(payload: dict):
+    """Compare two screenshots.
+    Expects JSON with ``original`` and ``repaired`` keys containing filenames stored in ``SCREENSHOT_DIR``.
+    """
+    original_name = payload.get("original")
+    repaired_name = payload.get("repaired")
+    if not original_name or not repaired_name:
+        raise HTTPException(status_code=400, detail="Both 'original' and 'repaired' fields are required.")
+    original_path = _ensure_within_screenshot_dir(original_name)
+    repaired_path = _ensure_within_screenshot_dir(repaired_name)
+    return compare_images(original_path, repaired_path)
 
 if __name__ == "__main__":
     import uvicorn

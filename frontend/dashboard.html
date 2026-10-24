@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 
 <head>
@@ -663,7 +663,7 @@
                         </p>
                     </article>
 
-                    <article class="card comparison-card">
+                    <article id="comparisonPanel" class="card comparison-card">
                         <h2>Before / After Comparison</h2>
                         <p>Compare the original screenshot with the repaired screenshot.</p>
 
@@ -671,16 +671,22 @@
                             style="display:grid; grid-template-columns:repeat(auto-fit, minmax(240px, 1fr)); gap:16px; margin-top:14px;">
                             <div>
                                 <h3 style="font-size:12px; margin-bottom:8px;">Before Repair</h3>
-                                <img id="beforeRepairImage" src="http://127.0.0.1:8000/screenshots/before.png"
+                                <img id="beforeRepairImage" src="" style="display:none; width:100%; height:auto; object-fit:contain; border:1px solid var(--line); border-radius:8px;"
                                     alt="Website screenshot before repair"
                                     style="width:100%; height:auto; object-fit:contain; border:1px solid var(--line); border-radius:8px; display:block;">
                             </div>
 
                             <div>
                                 <h3 style="font-size:12px; margin-bottom:8px;">After Repair</h3>
-                                <img id="afterRepairImage" src="http://127.0.0.1:8000/screenshots/after.png"
+                                <img id="afterRepairImage" src="" style="display:none; width:100%; height:auto; object-fit:contain; border:1px solid var(--line); border-radius:8px;"
                                     alt="Website screenshot after repair"
                                     style="width:100%; height:auto; object-fit:contain; border:1px solid var(--line); border-radius:8px; display:block;">
+                            </div>
+                            <div>
+                                <h3 style="font-size:12px; margin-bottom:8px;">Difference</h3>
+                                <img id="diffRepairImage" src="" alt="Difference image"
+                                    style="width:100%; height:auto; object-fit:contain; border:1px solid var(--line); border-radius:8px; display:none;">
+                                <p id="diffPercentage" style="font-size:12px; margin-top:8px; display:none; color:var(--muted);"></p>
                             </div>
                         </div>
                     </article>

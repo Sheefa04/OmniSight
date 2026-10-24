@@ -91,7 +91,10 @@ const dom = {
   comparisonContainer: $('comparisonContainer'),
   sandboxBeforeImg: $('sandboxBeforeImg'),
   sandboxAfterImg: $('sandboxAfterImg'),
-
+  beforeRepairImage: $('beforeRepairImage'),
+  afterRepairImage: $('afterRepairImage'),
+  diffRepairImage: $('diffRepairImage'),
+  diffPercentage: $('diffPercentage'),
   // Approval
   repairBtn: $('repairBtn'),
   repairStatus: $('repairStatus'),
@@ -592,13 +595,14 @@ async function handleSandboxEvaluate() {
       dom.comparisonPanel.hidden = false;
 
       // Before image: use the last inspection screenshot
-      if (state.lastScreenshotUrl && dom.sandboxBeforeImg) {
-        dom.sandboxBeforeImg.src = state.lastScreenshotUrl;
+      if (state.lastScreenshotUrl && dom.beforeRepairImage) {
+        dom.beforeRepairImage.src = state.lastScreenshotUrl;
+        dom.beforeRepairImage.style.display = 'block';
       }
 
       // After image: sandbox result
-      if (dom.sandboxAfterImg) {
-        dom.sandboxAfterImg.src = afterUrl;
+      if (dom.afterRepairImage) {
+        dom.afterRepairImage.src = afterUrl;
       }
     }
 
@@ -747,12 +751,42 @@ async function handleApprovedRepair() {
     // Step 3: Update comparison
     const repairScreenshotUrl = buildScreenshotUrl(repairData);
     if (repairScreenshotUrl && dom.comparisonPanel) {
+      // Show comparison panel and before/after images
       dom.comparisonPanel.hidden = false;
-      if (state.lastScreenshotUrl && dom.sandboxBeforeImg) {
-        dom.sandboxBeforeImg.src = state.lastScreenshotUrl;
+      if (state.lastScreenshotUrl && dom.beforeRepairImage) {
+        dom.beforeRepairImage.src = state.lastScreenshotUrl;
+        dom.beforeRepairImage.style.display = 'block';
       }
-      if (dom.sandboxAfterImg) {
-        dom.sandboxAfterImg.src = repairScreenshotUrl;
+      if (dom.afterRepairImage) {
+        dom.afterRepairImage.src = repairScreenshotUrl;
+        dom.afterRepairImage.style.display = 'block';
+      }
+      // Call backend to generate diff if we have both filenames
+      if (state.lastScreenshotUrl && repairScreenshotUrl) {
+        const origName = new URL(state.lastScreenshotUrl).pathname.split('/').pop();
+        const repairedName = new URL(repairScreenshotUrl).pathname.split('/').pop();
+        try {
+          const compareRes = await fetch(API_BASE + '/compare-screenshots', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ original: origName, repaired: repairedName })
+          });
+          const compareData = await compareRes.json();
+          if (!compareRes.ok) {
+            throw new Error(formatApiError(compareData, 'Comparison request failed'));
+          }
+          if (dom.diffRepairImage) {
+            dom.diffRepairImage.src = API_BASE + compareData.diff_url;
+            dom.diffRepairImage.style.display = 'block';
+          }
+          if (dom.diffPercentage) {
+            dom.diffPercentage.textContent = `${compareData.difference_percent}% difference`;
+            dom.diffPercentage.style.display = 'block';
+          }
+        } catch (err) {
+          console.error('Comparison error:', err);
+          showNotice(dom.notice, 'Comparison failed: ' + err.message, 'warning');
+        }
       }
     }
 
