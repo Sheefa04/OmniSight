@@ -464,11 +464,14 @@ async def sandbox_evaluate(request: SandboxRequest):
             css_snippet=request.css,
         )
         return result
+    except HTTPException:
+        # Preserve original 4xx errors (e.g., invalid viewport)
+        raise
     except Exception as exc:  # unexpected failures
         logger.exception("Sandbox evaluation failed")
         raise HTTPException(
             status_code=500,
-            detail=f"Sandbox evaluation error: {exc}",
+            detail="Sandbox evaluation failed.",
         )
 
 

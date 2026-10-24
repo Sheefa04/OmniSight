@@ -1,8 +1,47 @@
+import pytest
+import subprocess
+import sys
+import time
+import atexit
+import os
+import signal
+from pathlib import Path
 import json
 import urllib.request
 import urllib.error
-from pathlib import Path
 from playwright.sync_api import sync_playwright
+
+@pytest.fixture(scope="session", autouse=True)
+def start_backend():
+    """Start the FastAPI backend as a subprocess for the test session."""
+    proc = subprocess.Popen([
+        sys.executable,
+        "-m",
+        "uvicorn",
+        "backend.main:app",
+        "--host",
+        "127.0.0.1",
+        "--port",
+        "8000",
+        "--log-level",
+        "error",
+    ], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    # Give server time to start
+    time.sleep(3)
+    # Ensure the process is terminated when Python exits
+    def _cleanup():
+        if proc.poll() is None:
+            try:
+                if os.name == "nt":
+                    proc.send_signal(signal.CTRL_BREAK_EVENT)
+                else:
+                    proc.terminate()
+            except Exception:
+                pass
+    atexit.register(_cleanup)
+    yield
+    _cleanup()
+
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 EVIDENCE_DIR = PROJECT_ROOT / "screenshots" / "evidence"
@@ -160,12 +199,35 @@ def test_responsive_viewports_and_workflow():
         
         browser.close()
 
+def test_sandbox_invalid_viewport():
+    """Test that sandbox-evaluate returns a 4xx error for an invalid viewport string."""
+    print("\n--- Test: Sandbox endpoint invalid viewport ---")
+    req = urllib.request.Request(
+        f"{API_BASE}/sandbox-evaluate",
+        data=json.dumps({
+            "url": STORE_URL,
+            "viewport": "invalid",
+            "css": "button { color: red; }"
+        }).encode(),
+        headers={"Content-Type": "application/json"}
+    )
+    try:
+        urllib.request.urlopen(req)
+        assert False, "Expected HTTPError for invalid viewport"
+    except urllib.error.HTTPError as e:
+        # FastAPI returns 400 for invalid viewport
+        assert e.code == 400, f"Unexpected status code {e.code}"
+        body = json.loads(e.read().decode())
+        assert "Invalid viewport" in body.get("detail", "")
+        print("[OK] Sandbox invalid viewport correctly returned 400:", body.get("detail"))
+
 if __name__ == "__main__":
     test_api_health()
     test_safety_approved_false()
     test_safety_invalid_url()
     test_safety_non_broken_page()
     test_responsive_viewports_and_workflow()
+    test_sandbox_invalid_viewport()
     print("\n=======================================================")
     print(" ALL TESTS PASSED: COMPLETE EVIDENCE SUITE GENERATED! ")
     print("=======================================================\n")
