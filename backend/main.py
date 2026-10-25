@@ -1,16 +1,19 @@
 import sys
 import asyncio
+import logging
+import re
 from pathlib import Path
 from urllib.parse import urlparse
 from uuid import uuid4
-import logging
-import re
-import os
+
 if sys.platform == "win32":
     asyncio.set_event_loop_policy(asyncio.WindowsProactorEventLoopPolicy())
     try:
         import uvicorn.loops.asyncio
-        uvicorn.loops.asyncio.asyncio_loop_factory = lambda use_subprocess=False: asyncio.ProactorEventLoop
+
+        uvicorn.loops.asyncio.asyncio_loop_factory = (
+            lambda use_subprocess=False: asyncio.ProactorEventLoop
+        )
     except Exception:
         pass
 
@@ -19,7 +22,12 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from pydantic import BaseModel, HttpUrl
-from playwright.async_api import async_playwright, TimeoutError as PlaywrightTimeoutError
+from playwright.async_api import (
+    async_playwright,
+    TimeoutError as PlaywrightTimeoutError,
+)
+from PIL import Image, ImageChops
+
 from .repair_sandbox import evaluate_css_candidate
 
 
@@ -30,10 +38,8 @@ from .repair_sandbox import evaluate_css_candidate
 BASE_DIR = Path(__file__).resolve().parent
 SCREENSHOT_DIR = BASE_DIR / "screenshots"
 SCREENSHOT_DIR.mkdir(parents=True, exist_ok=True)
+
 FRONTEND_DIR = BASE_DIR.parent / "frontend"
-# Additional imports for image comparison
-from PIL import Image, ImageChops
-import uuid
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("omnisight")
@@ -44,11 +50,8 @@ app = FastAPI(
     version="1.0.0",
 )
 
-# Allow the local frontend served through Live Server, file origin, or any port.
 app.add_middleware(
     CORSMiddleware,
-    # Local prototype: allow Live Server on any localhost/127.0.0.1 port
-    # and avoid failed preflight requests from the dashboard.
     allow_origins=["*"],
     allow_credentials=False,
     allow_methods=["*"],
@@ -82,12 +85,22 @@ class InspectRequest(BaseModel):
 class RepairRequest(BaseModel):
     url: HttpUrl
     approved: bool = False
+    viewport: str = "1366x768"
+
 
 class SandboxRequest(BaseModel):
-    """Payload for the What‑If Repair Sandbox."""
-    url: HttpUrl                     # target page
-    viewport: str = "375x812"        # same format as other endpoints
-    css: str                         # raw CSS snippet to test
+    url: HttpUrl
+    viewport: str = "375x812"
+    css: str
+
+
+class CompareScreenshotsRequest(BaseModel):
+    # object permits invalid JSON types to reach our validation,
+    # so we can return HTTP 400 instead of automatic HTTP 422.
+    original: object = None
+    repaired: object = None
+    original_viewport: str | None = None
+    repaired_viewport: str | None = None
 
 
 # --------------------------------------------------
@@ -95,7 +108,6 @@ class SandboxRequest(BaseModel):
 # --------------------------------------------------
 
 def validate_http_url(url: str) -> str:
-    """Allow only HTTP and HTTPS URLs."""
     parsed = urlparse(url)
 
     if parsed.scheme not in ("http", "https") or not parsed.hostname:
@@ -107,9 +119,39 @@ def validate_http_url(url: str) -> str:
     return url
 
 
+SUPPORTED_VIEWPORTS = {
+    "1366x768": {
+        "width": 1366,
+        "height": 768,
+        "label": "Desktop",
+    },
+    "768x1024": {
+        "width": 768,
+        "height": 1024,
+        "label": "Tablet",
+    },
+    "375x812": {
+        "width": 375,
+        "height": 812,
+        "label": "Mobile",
+    },
+    "390x844": {
+        "width": 390,
+        "height": 844,
+        "label": "Mobile",
+    },
+}
+
+
+def viewport_key(viewport: dict) -> str:
+    return f"{viewport['width']}x{viewport['height']}"
+
+
 def parse_viewport(viewport: str) -> dict:
-    """Convert a viewport such as 375x812 into dimensions."""
-    match = re.fullmatch(r"\s*(\d{2,4})\s*x\s*(\d{2,4})\s*", viewport)
+    match = re.fullmatch(
+        r"\s*(\d{2,4})\s*x\s*(\d{2,4})\s*",
+        viewport,
+    )
 
     if not match:
         raise HTTPException(
@@ -128,17 +170,51 @@ def parse_viewport(viewport: str) -> dict:
     return {"width": width, "height": height}
 
 
+def _ensure_within_screenshot_dir(filename: str) -> Path:
+    """Allow only filenames belonging to the screenshot directory."""
+
+    if (
+        not filename
+        or Path(filename).name != filename
+        or "/" in filename
+        or "\\" in filename
+    ):
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid screenshot identifier.",
+        )
+
+    path = (SCREENSHOT_DIR / filename).resolve()
+
+    if path.parent != SCREENSHOT_DIR.resolve():
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid screenshot identifier.",
+        )
+
+    if not path.is_file():
+        raise HTTPException(
+            status_code=404,
+            detail="Screenshot not found.",
+        )
+
+    return path
+
+
 async def open_browser_page(url: str, viewport: dict):
-    """Launch Chromium and return the active browser resources."""
+    """Launch Chromium and return active browser resources."""
+
     playwright = await async_playwright().start()
     browser = None
 
     try:
         browser = await playwright.chromium.launch(headless=True)
+
         context = await browser.new_context(
             viewport=viewport,
             ignore_https_errors=False,
         )
+
         page = await context.new_page()
 
         response = await page.goto(
@@ -152,16 +228,29 @@ async def open_browser_page(url: str, viewport: dict):
     except Exception:
         if browser is not None:
             await browser.close()
+
         await playwright.stop()
         raise
 
 
 async def close_browser_resources(playwright, browser):
-    """Close browser resources safely."""
     try:
         await browser.close()
     finally:
         await playwright.stop()
+
+
+async def capture_full_page_screenshot(page, screenshot_path: Path):
+    try:
+        await page.evaluate("document.fonts.ready")
+    except Exception:
+        logger.debug("Could not wait for document fonts.")
+
+    await page.screenshot(
+        path=str(screenshot_path),
+        full_page=True,
+        animations="disabled",
+    )
 
 
 # --------------------------------------------------
@@ -180,9 +269,15 @@ async def root():
 
 @app.get("/dashboard")
 async def dashboard_page():
-    if FRONTEND_DIR.exists() and (FRONTEND_DIR / "dashboard.html").exists():
-        return FileResponse(str(FRONTEND_DIR / "dashboard.html"))
-    raise HTTPException(status_code=404, detail="Dashboard not found")
+    dashboard_file = FRONTEND_DIR / "dashboard.html"
+
+    if dashboard_file.exists():
+        return FileResponse(str(dashboard_file))
+
+    raise HTTPException(
+        status_code=404,
+        detail="Dashboard not found.",
+    )
 
 
 @app.get("/health")
@@ -190,6 +285,17 @@ async def health():
     return {
         "status": "healthy",
         "service": "OmniSight API",
+    }
+
+
+@app.get("/viewports")
+async def get_viewports():
+    return {
+        "status": "success",
+        "viewports": [
+            {"key": key, **details}
+            for key, details in SUPPORTED_VIEWPORTS.items()
+        ],
     }
 
 
@@ -215,6 +321,7 @@ async def inspect_website(request: InspectRequest):
                 "url": page.url,
                 "http_status": response.status if response else None,
                 "viewport": viewport,
+                "viewport_key": viewport_key(viewport),
             }
         finally:
             await close_browser_resources(playwright, browser)
@@ -238,8 +345,11 @@ async def inspect_website(request: InspectRequest):
 async def inspect_browser(request: InspectRequest):
     url = validate_http_url(str(request.url))
     viewport = parse_viewport(request.viewport)
+    current_viewport_key = viewport_key(viewport)
 
-    screenshot_name = f"inspection_{uuid4().hex[:10]}.png"
+    screenshot_name = (
+        f"inspection_{current_viewport_key}_{uuid4().hex[:10]}.png"
+    )
     screenshot_path = SCREENSHOT_DIR / screenshot_name
 
     try:
@@ -248,11 +358,7 @@ async def inspect_browser(request: InspectRequest):
         )
 
         try:
-            await page.screenshot(
-                path=str(screenshot_path),
-                full_page=True,
-                animations="disabled",
-            )
+            await capture_full_page_screenshot(page, screenshot_path)
 
             return {
                 "status": "success",
@@ -261,6 +367,7 @@ async def inspect_browser(request: InspectRequest):
                 "url": page.url,
                 "http_status": response.status if response else None,
                 "viewport": viewport,
+                "viewport_key": current_viewport_key,
                 "screenshot": str(screenshot_path),
                 "screenshot_url": f"/screenshots/{screenshot_name}",
             }
@@ -283,6 +390,57 @@ async def inspect_browser(request: InspectRequest):
 
 
 # --------------------------------------------------
+# Baseline screenshot
+# --------------------------------------------------
+
+@app.post("/capture-baseline")
+async def capture_baseline(request: InspectRequest):
+    url = validate_http_url(str(request.url))
+    viewport = parse_viewport(request.viewport)
+    current_viewport_key = viewport_key(viewport)
+
+    screenshot_name = (
+        f"baseline_{current_viewport_key}_{uuid4().hex[:10]}.png"
+    )
+    screenshot_path = SCREENSHOT_DIR / screenshot_name
+
+    try:
+        playwright, browser, context, page, response = (
+            await open_browser_page(url, viewport)
+        )
+
+        try:
+            await capture_full_page_screenshot(page, screenshot_path)
+
+            return {
+                "status": "success",
+                "message": "Baseline screenshot captured successfully.",
+                "url": page.url,
+                "viewport": viewport,
+                "viewport_key": current_viewport_key,
+                "http_status": response.status if response else None,
+                "screenshot": str(screenshot_path),
+                "screenshot_url": f"/screenshots/{screenshot_name}",
+            }
+        finally:
+            await close_browser_resources(playwright, browser)
+
+    except PlaywrightTimeoutError:
+        raise HTTPException(
+            status_code=504,
+            detail="The website took too long to load.",
+        )
+    except HTTPException:
+        raise
+    except Exception:
+        logger.exception("Baseline screenshot capture failed")
+        raise HTTPException(
+            status_code=500,
+            detail="Baseline capture failed. Check the backend terminal.",
+        )
+
+
+# --------------------------------------------------
 # Browser test
 # --------------------------------------------------
 
@@ -294,6 +452,7 @@ async def test_browser():
 
             try:
                 page = await browser.new_page()
+
                 await page.goto(
                     "https://example.com",
                     wait_until="domcontentloaded",
@@ -361,7 +520,8 @@ async def detect_issues(request: InspectRequest):
                         found.push({
                             type: 'horizontal-overflow',
                             element: el.tagName.toLowerCase(),
-                            text: (el.innerText || '').trim().slice(0, 100),
+                            text: (el.innerText || '')
+                                .trim().slice(0, 100),
                             description:
                                 'Element extends beyond viewport width.'
                         });
@@ -374,33 +534,34 @@ async def detect_issues(request: InspectRequest):
                         found.push({
                             type: 'positioning',
                             element: el.tagName.toLowerCase(),
-                            text: (el.innerText || '').trim().slice(0, 100),
+                            text: (el.innerText || '')
+                                .trim().slice(0, 100),
                             description:
                                 'Absolutely positioned element starts above the viewport.'
                         });
                     }
-                    
-                    const isBrokenButton = el.matches(
-    'button.broken-button, button.buggy-button'
-);
 
-if (isBrokenButton) {
-    found.push({
-        type: 'oversized-button',
-        element: el.tagName.toLowerCase(),
-        text: (el.innerText || el.value || '')
-            .trim()
-            .slice(0, 100),
-        description:
-            'Known demo button has intentionally unwrapped text and oversized padding.',
-        width: Math.round(rect.width),
-        parent_width: el.parentElement
-            ? Math.round(
-                el.parentElement.getBoundingClientRect().width
-            )
-            : null
-    });
-}
+                    const isBrokenButton = el.matches(
+                        'button.broken-button, button.buggy-button'
+                    );
+
+                    if (isBrokenButton) {
+                        found.push({
+                            type: 'oversized-button',
+                            element: el.tagName.toLowerCase(),
+                            text: (el.innerText || el.value || '')
+                                .trim().slice(0, 100),
+                            description:
+                                'Known demo button has intentionally unwrapped text and oversized padding.',
+                            width: Math.round(rect.width),
+                            parent_width: el.parentElement
+                                ? Math.round(
+                                    el.parentElement
+                                        .getBoundingClientRect().width
+                                )
+                                : null
+                        });
+                    }
 
                     if (found.length >= 50) {
                         break;
@@ -415,7 +576,8 @@ if (isBrokenButton) {
                         type: 'page-horizontal-overflow',
                         element: 'html',
                         text: '',
-                        description: 'The page is wider than the viewport.'
+                        description:
+                            'The page is wider than the viewport.'
                     });
                 }
 
@@ -427,6 +589,7 @@ if (isBrokenButton) {
                 "message": "Basic DOM-based UI checks completed.",
                 "url": page.url,
                 "viewport": viewport,
+                "viewport_key": viewport_key(viewport),
                 "http_status": response.status if response else None,
                 "issue_count": len(issues),
                 "issues": issues,
@@ -450,27 +613,26 @@ if (isBrokenButton) {
             detail="Issue detection failed. Check the backend terminal.",
         )
 
-    # --------------------------------------------------
-# What‑If Repair Sandbox
+
 # --------------------------------------------------
+# What-If Repair Sandbox
+# --------------------------------------------------
+
 @app.post("/sandbox-evaluate")
 async def sandbox_evaluate(request: SandboxRequest):
-    """
-    Evaluate one or more CSS repair candidates in an isolated
-    Playwright context. Returns measurements and a screenshot for the
-    caller to rank the candidate.
-    """
     try:
-        result = await evaluate_css_candidate(
-            url=str(request.url),
+        url = validate_http_url(str(request.url))
+        parse_viewport(request.viewport)
+
+        return await evaluate_css_candidate(
+            url=url,
             viewport_str=request.viewport,
             css_snippet=request.css,
         )
-        return result
+
     except HTTPException:
-        # Preserve original 4xx errors (e.g., invalid viewport)
         raise
-    except Exception as exc:  # unexpected failures
+    except Exception:
         logger.exception("Sandbox evaluation failed")
         raise HTTPException(
             status_code=500,
@@ -494,30 +656,33 @@ async def repair_ui(request: RepairRequest):
         )
 
     url = validate_http_url(str(request.url))
+    viewport = parse_viewport(request.viewport)
+    current_viewport_key = viewport_key(viewport)
 
     try:
         playwright, browser, context, page, response = (
-            await open_browser_page(
-                url,
-                {"width": 1366, "height": 768},
-            )
+            await open_browser_page(url, viewport)
         )
 
         try:
             repair_result = await page.evaluate("""() => {
-                const button = document.querySelector('button.buggy-button, button.broken-button');
+                const button = document.querySelector(
+                    'button.buggy-button, button.broken-button'
+                );
 
                 if (!button) {
                     return {
                         applied: false,
-                        message: 'No button.buggy-button or button.broken-button element was found.'
+                        message:
+                            'No button.buggy-button or button.broken-button element was found.'
                     };
                 }
 
                 const style = document.createElement('style');
                 style.id = 'omnisight-demo-repair';
                 style.textContent = `
-                    button.buggy-button, button.broken-button {
+                    button.buggy-button,
+                    button.broken-button {
                         position: relative !important;
                         max-width: 100% !important;
                         box-sizing: border-box !important;
@@ -531,18 +696,17 @@ async def repair_ui(request: RepairRequest):
 
                 return {
                     applied: true,
-                    message: 'Temporary CSS repair applied to the demo button.'
+                    message:
+                        'Temporary CSS repair applied to the demo button.'
                 };
             }""")
 
-            screenshot_name = f"repair_{uuid4().hex[:10]}.png"
+            screenshot_name = (
+                f"repair_{current_viewport_key}_{uuid4().hex[:10]}.png"
+            )
             screenshot_path = SCREENSHOT_DIR / screenshot_name
 
-            await page.screenshot(
-                path=str(screenshot_path),
-                full_page=True,
-                animations="disabled",
-            )
+            await capture_full_page_screenshot(page, screenshot_path)
 
             return {
                 "status": (
@@ -550,7 +714,10 @@ async def repair_ui(request: RepairRequest):
                 ),
                 "message": repair_result["message"],
                 "url": page.url,
+                "viewport": viewport,
+                "viewport_key": current_viewport_key,
                 "http_status": response.status if response else None,
+                "screenshot": str(screenshot_path),
                 "screenshot_url": f"/screenshots/{screenshot_name}",
                 "note": (
                     "The repair exists only in this browser session; "
@@ -575,83 +742,156 @@ async def repair_ui(request: RepairRequest):
             detail="UI repair failed. Check the backend terminal.",
         )
 
+
 # --------------------------------------------------
-# Image Comparison Utilities
+# Screenshot comparison
 # --------------------------------------------------
 
-def _ensure_within_screenshot_dir(filename: str) -> Path:
-    """Validate *filename* is a safe identifier inside ``SCREENSHOT_DIR``.
+def compare_images(
+    original_path: Path,
+    repaired_path: Path,
+    *,
+    original_viewport_key: str | None = None,
+    repaired_viewport_key: str | None = None,
+) -> dict:
+    """Compare screenshots without stretching or hiding width mismatches."""
 
-    - Must be a plain filename (no path separators).
-    - Must not be absolute.
-    - Must not contain ``..`` traversal components.
-    - Must resolve within ``SCREENSHOT_DIR``.
-    """
-    if not isinstance(filename, str) or not filename:
-        raise HTTPException(status_code=400, detail="Invalid screenshot identifier.")
-    # Reject any path separators or parent directory references.
-    if os.path.sep in filename or (os.path.altsep and os.path.altsep in filename):
-        raise HTTPException(status_code=400, detail="Invalid screenshot identifier.")
-    if ".." in filename:
-        raise HTTPException(status_code=400, detail="Invalid screenshot identifier.")
-    candidate = (SCREENSHOT_DIR / filename).resolve()
-    try:
-        candidate.relative_to(SCREENSHOT_DIR.resolve())
-    except Exception:
-        raise HTTPException(status_code=400, detail="Invalid screenshot identifier.")
-    if not candidate.is_file():
-        raise HTTPException(status_code=404, detail="Screenshot not found.")
-    return candidate
-    # (old implementation removed)
+    if (
+        original_viewport_key
+        and repaired_viewport_key
+        and original_viewport_key != repaired_viewport_key
+    ):
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "Viewport mismatch: cannot compare screenshots captured "
+                f"at different viewports: {original_viewport_key} "
+                f"vs {repaired_viewport_key}."
+            ),
+        )
 
-def compare_images(original_path: Path, repaired_path: Path) -> dict:
-    """Pixel‑level comparison of two images.
-    Returns URLs for original, repaired, diff image and percent of changed pixels.
-    """
     try:
-        orig = Image.open(original_path).convert("RGB")
-        repl = Image.open(repaired_path).convert("RGB")
+        with Image.open(original_path) as original_image:
+            orig = original_image.convert("RGB")
+
+        with Image.open(repaired_path) as repaired_image:
+            repl = repaired_image.convert("RGB")
+
     except Exception:
-        raise HTTPException(status_code=400, detail="Failed to open images.")
-    if orig.size != repl.size:
-        raise HTTPException(status_code=400, detail="Images have different dimensions.")
+        logger.exception("Failed to open screenshots for comparison")
+        raise HTTPException(
+            status_code=400,
+            detail="Failed to open images.",
+        )
+
+    if orig.width != repl.width:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "Images have different widths: "
+                f"{orig.width}px vs {repl.width}px. "
+                "Capture both screenshots at the same viewport width."
+            ),
+        )
+
+    common_height = max(orig.height, repl.height)
+
+    if orig.height != repl.height:
+        aligned_orig = Image.new(
+            "RGB",
+            (orig.width, common_height),
+            (255, 255, 255),
+        )
+        aligned_repl = Image.new(
+            "RGB",
+            (repl.width, common_height),
+            (255, 255, 255),
+        )
+
+        aligned_orig.paste(orig, (0, 0))
+        aligned_repl.paste(repl, (0, 0))
+
+        orig = aligned_orig
+        repl = aligned_repl
+
     diff = ImageChops.difference(orig, repl)
     diff_data = diff.getdata()
     total_pixels = orig.width * orig.height
-    diff_pixels = sum(1 for p in diff_data if any(c != 0 for c in p))
-    diff_percent = (diff_pixels / total_pixels) * 100 if total_pixels else 0
-    diff_name = f"diff_{uuid.uuid4().hex[:10]}.png"
+
+    diff_pixels = sum(
+        1
+        for pixel in diff_data
+        if any(channel != 0 for channel in pixel)
+    )
+
+    diff_percent = (
+        (diff_pixels / total_pixels) * 100
+        if total_pixels
+        else 0
+    )
+
+    diff_name = f"diff_{uuid4().hex[:10]}.png"
     diff_path = SCREENSHOT_DIR / diff_name
+
+    # When screenshots are identical, save the original as the
+    # difference image so the zero-difference case is handled correctly.
     if diff_pixels == 0:
-        # No differences – save a copy of the original as diff image
         orig.save(diff_path)
     else:
         diff.save(diff_path)
+
     return {
+        "status": "success",
         "original_url": f"/screenshots/{original_path.name}",
         "repaired_url": f"/screenshots/{repaired_path.name}",
         "diff_url": f"/screenshots/{diff_name}",
         "difference_percent": round(diff_percent, 2),
         "total_pixels": total_pixels,
         "different_pixels": diff_pixels,
-        "dimensions": {"width": orig.width, "height": orig.height},
+        "original_viewport_key": original_viewport_key,
+        "repaired_viewport_key": repaired_viewport_key,
+        "dimensions": {
+            "width": orig.width,
+            "height": orig.height,
+        },
     }
 
+
 @app.post("/compare-screenshots")
-async def compare_screenshots(payload: dict):
-    """Compare two screenshots.
-    Expects JSON with ``original`` and ``repaired`` keys containing filenames stored in ``SCREENSHOT_DIR``.
-    """
-    original_name = payload.get("original")
-    repaired_name = payload.get("repaired")
-    if not original_name or not repaired_name:
-        raise HTTPException(status_code=400, detail="Both 'original' and 'repaired' fields are required.")
-    original_path = _ensure_within_screenshot_dir(original_name)
-    repaired_path = _ensure_within_screenshot_dir(repaired_name)
-    return compare_images(original_path, repaired_path)
+async def compare_screenshots(payload: CompareScreenshotsRequest):
+    if not isinstance(payload.original, str) or not payload.original:
+        raise HTTPException(
+            status_code=400,
+            detail="Missing or invalid screenshot identifier.",
+        )
+
+    if not isinstance(payload.repaired, str) or not payload.repaired:
+        raise HTTPException(
+            status_code=400,
+            detail="Missing or invalid screenshot identifier.",
+        )
+
+    original_path = _ensure_within_screenshot_dir(payload.original)
+    repaired_path = _ensure_within_screenshot_dir(payload.repaired)
+
+    return compare_images(
+        original_path,
+        repaired_path,
+        original_viewport_key=payload.original_viewport,
+        repaired_viewport_key=payload.repaired_viewport,
+    )
+
+
+# --------------------------------------------------
+# Run directly
+# --------------------------------------------------
 
 if __name__ == "__main__":
     import uvicorn
-    # reload=False is required on Windows to preserve ProactorEventLoop for Playwright subprocesses
-    uvicorn.run("main:app", host="127.0.0.1", port=8000, reload=False)
 
+    uvicorn.run(
+        "backend.main:app",
+        host="127.0.0.1",
+        port=8000,
+        reload=False,
+    )
