@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en">
 
 <head>
@@ -580,6 +580,7 @@
                                     <option value="1366x768">Desktop (1366 × 768)</option>
                                     <option value="768x1024">Tablet (768 × 1024)</option>
                                     <option value="375x812" selected>Mobile (375 × 812)</option>
+                                    <option value="390x844">Mobile (390 × 844)</option>
                                 </select>
                             </div>
 
@@ -663,30 +664,37 @@
                         </p>
                     </article>
 
-                    <article id="comparisonPanel" class="card comparison-card">
+                    <article id="comparisonPanel" class="card comparison-card" style="grid-column: 1 / -1;">
                         <h2>Before / After Comparison</h2>
-                        <p>Compare the original screenshot with the repaired screenshot.</p>
+                        <p id="comparisonStatus">Compare the original screenshot with the repaired screenshot.</p>
 
                         <div
                             style="display:grid; grid-template-columns:repeat(auto-fit, minmax(240px, 1fr)); gap:16px; margin-top:14px;">
                             <div>
                                 <h3 style="font-size:12px; margin-bottom:8px;">Before Repair</h3>
-                                <img id="beforeRepairImage" src="" style="display:none; width:100%; height:auto; object-fit:contain; border:1px solid var(--line); border-radius:8px;"
-                                    alt="Website screenshot before repair"
-                                    style="width:100%; height:auto; object-fit:contain; border:1px solid var(--line); border-radius:8px; display:block;">
+                                <div id="beforeRepairPlaceholder" style="font-size:11px; padding:24px 12px; text-align:center; color:var(--muted); border:1px dashed var(--line); border-radius:8px; background:var(--white);">
+                                    Awaiting inspection or baseline...
+                                </div>
+                                <img id="beforeRepairImage" src="" alt="Website screenshot before repair"
+                                    style="width:100%; height:auto; object-fit:contain; border:1px solid var(--line); border-radius:8px; display:none;">
                             </div>
 
                             <div>
                                 <h3 style="font-size:12px; margin-bottom:8px;">After Repair</h3>
-                                <img id="afterRepairImage" src="" style="display:none; width:100%; height:auto; object-fit:contain; border:1px solid var(--line); border-radius:8px;"
-                                    alt="Website screenshot after repair"
-                                    style="width:100%; height:auto; object-fit:contain; border:1px solid var(--line); border-radius:8px; display:block;">
+                                <div id="afterRepairPlaceholder" style="font-size:11px; padding:24px 12px; text-align:center; color:var(--muted); border:1px dashed var(--line); border-radius:8px; background:var(--white);">
+                                    Awaiting approved repair...
+                                </div>
+                                <img id="afterRepairImage" src="" alt="Website screenshot after repair"
+                                    style="width:100%; height:auto; object-fit:contain; border:1px solid var(--line); border-radius:8px; display:none;">
                             </div>
                             <div>
                                 <h3 style="font-size:12px; margin-bottom:8px;">Difference</h3>
+                                <div id="diffRepairPlaceholder" style="font-size:11px; padding:24px 12px; text-align:center; color:var(--muted); border:1px dashed var(--line); border-radius:8px; background:var(--white);">
+                                    Awaiting comparison...
+                                </div>
                                 <img id="diffRepairImage" src="" alt="Difference image"
                                     style="width:100%; height:auto; object-fit:contain; border:1px solid var(--line); border-radius:8px; display:none;">
-                                <p id="diffPercentage" style="font-size:12px; margin-top:8px; display:none; color:var(--muted);"></p>
+                                <p id="diffPercentage" style="font-size:12px; margin-top:8px; display:none; color:var(--muted); font-weight:600;"></p>
                             </div>
                         </div>
                     </article>
@@ -854,8 +862,13 @@
 
             // Connect Before image to the actual inspection screenshot
             const beforeImage = document.getElementById('beforeRepairImage');
+            const beforePlaceholder = document.getElementById('beforeRepairPlaceholder');
             if (beforeImage) {
                 beforeImage.src = imageUrl;
+                // Phase 3: store the viewport key so repair can validate mismatch
+                beforeImage.dataset.viewport = (viewportInput ? viewportInput.value : '') || '';
+                beforeImage.style.display = 'block';
+                if (beforePlaceholder) beforePlaceholder.style.display = 'none';
             }
         }
 
@@ -1123,12 +1136,24 @@
             }
         }
 
+        function extractFilename(urlOrPath) {
+            if (!urlOrPath || typeof urlOrPath !== 'string') return '';
+            const clean = urlOrPath.split('?')[0].split('#')[0];
+            const parts = clean.replace(/\\/g, '/').split('/');
+            return parts.pop() || '';
+        }
+
         async function repairDashboardUI() {
             const button = document.getElementById("repairButton");
             const status = document.getElementById("repairStatus");
             const urlInput = document.getElementById("websiteUrl");
             const beforeImage = document.getElementById("beforeRepairImage");
             const afterImage = document.getElementById("afterRepairImage");
+            const diffImage = document.getElementById("diffRepairImage");
+            const diffPercentage = document.getElementById("diffPercentage");
+            const beforePlaceholder = document.getElementById("beforeRepairPlaceholder");
+            const afterPlaceholder = document.getElementById("afterRepairPlaceholder");
+            const diffPlaceholder = document.getElementById("diffRepairPlaceholder");
 
             let websiteUrl = urlInput ? urlInput.value.trim() : "";
 
@@ -1161,36 +1186,51 @@
             document.body.dataset.inspecting = "true";
 
             try {
-                // Step 1: Ensure we have a valid baseline Before image
-                const hasBeforeImage = beforeImage && beforeImage.src && !beforeImage.src.includes("before.png");
-                if (!hasBeforeImage) {
+                // Step 1: Ensure we have a valid baseline Before image matching the repair viewport (1366x768)
+                // Phase 3: use /capture-baseline endpoint so the viewport is explicit and labelled
+                const repairViewport = (viewportInput && viewportInput.value) || "1366x768";
+                const hasValidBefore = beforeImage &&
+                    beforeImage.src &&
+                    !beforeImage.src.includes("before.png") &&
+                    beforeImage.dataset.viewport === repairViewport;
+
+                if (!hasValidBefore) {
                     if (status) {
                         status.textContent = "Capturing baseline screenshot before repair...";
                         status.style.color = "var(--muted)";
                     }
-                    const inspectRes = await fetch(API_BASE + "/inspect-browser", {
+                    // Phase 3: use /capture-baseline instead of /inspect-browser
+                    // so the viewport is always consistent with the repair viewport.
+                    const baselineRes = await fetch(API_BASE + "/capture-baseline", {
                         method: "POST",
                         headers: { "Content-Type": "application/json" },
                         body: JSON.stringify({
                             url: websiteUrl,
-                            viewport: "1366x768"
+                            viewport: repairViewport
                         })
                     });
 
-                    let inspectData = {};
+                    let baselineData = {};
                     try {
-                        inspectData = await inspectRes.json();
+                        baselineData = await baselineRes.json();
                     } catch {
-                        inspectData = {};
+                        baselineData = {};
                     }
 
-                    if (!inspectRes.ok || inspectData.status !== "success") {
-                        throw new Error(formatApiError(inspectData, "Could not capture baseline screenshot."));
+                    if (!baselineRes.ok || baselineData.status !== "success") {
+                        throw new Error(formatApiError(baselineData, "Could not capture baseline screenshot."));
                     }
 
-                    if (inspectData.screenshot_url && beforeImage) {
-                        beforeImage.src = new URL(inspectData.screenshot_url, API_BASE).href + "?t=" + Date.now();
+                    if (baselineData.screenshot_url && beforeImage) {
+                        beforeImage.src = new URL(baselineData.screenshot_url, API_BASE).href + "?t=" + Date.now();
+                        // Phase 3: store the viewport_key from the response
+                        beforeImage.dataset.viewport = baselineData.viewport_key || repairViewport;
                     }
+                }
+
+                if (beforeImage) {
+                    beforeImage.style.display = "block";
+                    if (beforePlaceholder) beforePlaceholder.style.display = "none";
                 }
 
                 // Step 2: Apply the approved temporary CSS repair in browser session
@@ -1203,9 +1243,10 @@
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({
-                        url: websiteUrl,
-                        approved: true
-                    })
+    url: websiteUrl,
+    approved: true,
+    viewport: repairViewport
+})
                 });
 
                 let repairData = {};
@@ -1222,6 +1263,61 @@
                 // Step 3: Update After Repair screenshot
                 if (repairData.screenshot_url && afterImage) {
                     afterImage.src = new URL(repairData.screenshot_url, API_BASE).href + "?t=" + Date.now();
+                    afterImage.style.display = "block";
+                    if (afterPlaceholder) afterPlaceholder.style.display = "none";
+                }
+
+                // Step 4: Perform pixel-level comparison
+                const origFilename = extractFilename(beforeImage ? beforeImage.src : "");
+                const repairedFilename = extractFilename(repairData.screenshot_url || (afterImage ? afterImage.src : ""));
+
+                if (origFilename && repairedFilename) {
+                    try {
+                        if (status) {
+                            status.textContent = "Comparing before and after screenshots...";
+                        }
+                        // Phase 3: pass viewport keys so backend can detect cross-viewport mismatch
+                        const origViewportKey = beforeImage ? (beforeImage.dataset.viewport || null) : null;
+                        const repairedViewportKey = repairData.viewport_key || null;
+                        const compareRes = await fetch(API_BASE + "/compare-screenshots", {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({
+                                original: origFilename,
+                                repaired: repairedFilename,
+                                original_viewport: origViewportKey,
+                                repaired_viewport: repairedViewportKey
+                            })
+                        });
+
+                        const compareData = await compareRes.json();
+                        if (!compareRes.ok) {
+                            throw new Error(formatApiError(compareData, "Comparison request failed with HTTP " + compareRes.status));
+                        }
+
+                        if (diffImage && compareData.diff_url) {
+                            diffImage.src = new URL(compareData.diff_url, API_BASE).href + "?t=" + Date.now();
+                            diffImage.style.display = "block";
+                            if (diffPlaceholder) diffPlaceholder.style.display = "none";
+                        }
+
+                        if (diffPercentage && compareData.difference_percent !== undefined) {
+                            diffPercentage.textContent = `${compareData.difference_percent}% difference`;
+                            diffPercentage.style.display = "block";
+                            diffPercentage.style.color = "var(--ink)";
+                        }
+                    } catch (compareError) {
+                        console.error("OmniSight screenshot comparison error:", compareError);
+                        if (diffPlaceholder) {
+                            diffPlaceholder.textContent = "Comparison unavailable: " + compareError.message;
+                            diffPlaceholder.style.display = "block";
+                        }
+                        if (diffPercentage) {
+                            diffPercentage.textContent = "Error: " + compareError.message;
+                            diffPercentage.style.display = "block";
+                            diffPercentage.style.color = "var(--red)";
+                        }
+                    }
                 }
 
                 if (repairData.status === "success") {

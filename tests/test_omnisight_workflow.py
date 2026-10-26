@@ -13,31 +13,62 @@ from playwright.sync_api import sync_playwright
 
 @pytest.fixture(scope="session", autouse=True)
 def start_backend():
-    """Start the FastAPI backend as a subprocess for the test session."""
-    proc = subprocess.Popen([
-        sys.executable,
-        "-m",
-        "uvicorn",
-        "backend.main:app",
-        "--host",
-        "127.0.0.1",
-        "--port",
-        "8000",
-        "--log-level",
-        "error",
-    ], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-    # Give server time to start
-    time.sleep(3)
-    # Ensure the process is terminated when Python exits
-    def _cleanup():
-        if proc.poll() is None:
+    """Start the FastAPI backend as a subprocess for the test session if not already running."""
+    already_running = False
+    try:
+        with urllib.request.urlopen("http://127.0.0.1:8000/health", timeout=1) as res:
+            if res.status == 200:
+                already_running = True
+    except Exception:
+        already_running = False
+
+    proc = None
+    if not already_running:
+        flags = subprocess.CREATE_NEW_PROCESS_GROUP if os.name == "nt" else 0
+        proc = subprocess.Popen([
+            sys.executable,
+            "-m",
+            "uvicorn",
+            "backend.main:app",
+            "--host",
+            "127.0.0.1",
+            "--port",
+            "8000",
+            "--log-level",
+            "error",
+        ], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, creationflags=flags)
+
+        # Poll until health endpoint responds or timeout
+        start_time = time.time()
+        started = False
+        while time.time() - start_time < 12:
             try:
-                if os.name == "nt":
-                    proc.send_signal(signal.CTRL_BREAK_EVENT)
-                else:
-                    proc.terminate()
+                with urllib.request.urlopen("http://127.0.0.1:8000/health", timeout=1) as res:
+                    if res.status == 200:
+                        started = True
+                        break
             except Exception:
-                pass
+                time.sleep(0.5)
+
+        if not started:
+            if proc:
+                try:
+                    proc.kill()
+                except Exception:
+                    pass
+            raise RuntimeError("FastAPI backend failed to start within 12 seconds.")
+
+    def _cleanup():
+        if proc and proc.poll() is None:
+            try:
+                proc.terminate()
+                proc.wait(timeout=3)
+            except Exception:
+                try:
+                    proc.kill()
+                except Exception:
+                    pass
+
     atexit.register(_cleanup)
     yield
     _cleanup()
@@ -194,9 +225,31 @@ def test_responsive_viewports_and_workflow():
         
         # Evidence: Repaired & Comparison
         ev_comparison = EVIDENCE_DIR / "06_dashboard_repaired_comparison.png"
-        dashboard_page.screenshot(path=str(ev_comparison))
+        dashboard_page.screenshot(path=str(ev_comparison), full_page=True)
         print(f"[OK] Saved Before/After comparison evidence: {ev_comparison.name}")
-        
+
+        # Verify comparison panel images and difference metrics are rendered
+      
+        before_img = dashboard_page.locator("#beforeRepairImage")
+        after_img = dashboard_page.locator("#afterRepairImage")
+        diff_img = dashboard_page.locator("#diffRepairImage")
+        diff_pct = dashboard_page.locator("#diffPercentage")
+
+        print("\n--- DIFF IMAGE DEBUG ---")
+        print("Diff src:", diff_img.get_attribute("src"))
+        print("Diff display:", diff_img.evaluate("(el) => getComputedStyle(el).display"))
+        print("Diff complete:", diff_img.evaluate("(el) => el.complete"))
+        print("Diff naturalWidth:", diff_img.evaluate("(el) => el.naturalWidth"))
+        print("Placeholder:", dashboard_page.locator("#diffRepairPlaceholder").inner_text())
+        print("Percentage:", diff_pct.inner_text())
+        print("--- END DEBUG ---\n")
+
+        assert before_img.is_visible(), "Before repair image should be visible"
+        assert after_img.is_visible(), "After repair image should be visible"
+        assert diff_img.is_visible(), "Diff image should be visible"
+        assert diff_pct.is_visible(), "Diff percentage should be visible"
+        assert "%" in (diff_pct.text_content() or ""), "Diff percentage should display a percentage metric"
+
         browser.close()
 
 def test_sandbox_invalid_viewport():
@@ -220,6 +273,78 @@ def test_sandbox_invalid_viewport():
         body = json.loads(e.read().decode())
         assert "Invalid viewport" in body.get("detail", "")
         print("[OK] Sandbox invalid viewport correctly returned 400:", body.get("detail"))
+
+def test_safety_missing_approval():
+    """Ensure omitting 'approved' defaults to False and safely rejects repair."""
+    req = urllib.request.Request(
+        f"{API_BASE}/repair-ui",
+        data=json.dumps({"url": STORE_URL}).encode(),
+        headers={"Content-Type": "application/json"}
+    )
+    try:
+        urllib.request.urlopen(req)
+        assert False, "Expected HTTP 400 when approved is omitted"
+    except urllib.error.HTTPError as e:
+        assert e.code == 400
+        body = json.loads(e.read().decode())
+        assert "Set approved=true" in body.get("detail", "")
+        print("[OK] Omitted approval safely rejected with 400")
+
+def test_source_file_integrity_after_repair():
+    """Verify that applying an approved temporary repair NEVER modifies files on disk."""
+    store_file = PROJECT_ROOT / "frontend" / "store.html"
+    assert store_file.exists(), "store.html must exist on disk"
+    content_before = store_file.read_bytes()
+
+    req = urllib.request.Request(
+        f"{API_BASE}/repair-ui",
+        data=json.dumps({"url": STORE_URL, "approved": True}).encode(),
+        headers={"Content-Type": "application/json"}
+    )
+    with urllib.request.urlopen(req) as res:
+        assert res.status == 200
+        body = json.loads(res.read().decode())
+        assert body.get("status") == "success"
+
+    content_after = store_file.read_bytes()
+    assert content_before == content_after, "Target website source files MUST NOT be modified on disk by session repairs!"
+    print("[OK] Source file integrity verified: store.html unmodified on disk.")
+
+def test_detect_issues_valid_shophub():
+    """Verify issue detection returns structured evidence on ShopHub mobile."""
+    req = urllib.request.Request(
+        f"{API_BASE}/detect-issues",
+        data=json.dumps({"url": STORE_URL, "viewport": "375x812"}).encode(),
+        headers={"Content-Type": "application/json"}
+    )
+    with urllib.request.urlopen(req) as res:
+        assert res.status == 200
+        data = json.loads(res.read().decode())
+        assert data.get("status") == "success"
+        assert data.get("issue_count", 0) > 0
+        assert len(data.get("issues", [])) > 0
+        first_issue = data["issues"][0]
+        assert "type" in first_issue
+        assert "element" in first_issue
+        assert "description" in first_issue
+        print(f"[OK] Issue detection confirmed: {len(data['issues'])} issues found on ShopHub.")
+
+def test_detect_issues_invalid_viewport():
+    """Verify issue detection rejects invalid viewport with HTTP 400."""
+    req = urllib.request.Request(
+        f"{API_BASE}/detect-issues",
+        data=json.dumps({"url": STORE_URL, "viewport": "bad-viewport"}).encode(),
+        headers={"Content-Type": "application/json"}
+    )
+    try:
+        urllib.request.urlopen(req)
+        assert False, "Expected HTTP 400 for bad viewport"
+    except urllib.error.HTTPError as e:
+        assert e.code == 400
+        body = json.loads(e.read().decode())
+        assert "Invalid viewport" in body.get("detail", "")
+        print("[OK] Issue detection rejected bad viewport with HTTP 400.")
+
 
 if __name__ == "__main__":
     test_api_health()

@@ -862,13 +862,12 @@ async def compare_screenshots(payload: CompareScreenshotsRequest):
     if not isinstance(payload.original, str) or not payload.original:
         raise HTTPException(
             status_code=400,
-            detail="Missing or invalid screenshot identifier.",
-        )
+            detail="Required field missing or invalid screenshot identifier.",        )
 
     if not isinstance(payload.repaired, str) or not payload.repaired:
         raise HTTPException(
             status_code=400,
-            detail="Missing or invalid screenshot identifier.",
+            detail="Required field missing or invalid screenshot identifier.",
         )
 
     original_path = _ensure_within_screenshot_dir(payload.original)
