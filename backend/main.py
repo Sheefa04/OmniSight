@@ -835,10 +835,31 @@ def compare_images(
 
     # When screenshots are identical, save the original as the
     # difference image so the zero-difference case is handled correctly.
+   
     if diff_pixels == 0:
+        # Preserve existing behavior for identical screenshots.
         orig.save(diff_path)
     else:
-        diff.save(diff_path)
+        # Show changed pixels in red against a light background.
+        diff_gray = diff.convert("L")
+        diff_mask = diff_gray.point(
+            lambda value: 255 if value > 20 else 0
+        )
+
+        diff_visual = Image.new(
+            "RGB",
+            orig.size,
+            (245, 245, 245),
+        )
+
+        red_highlight = Image.new(
+            "RGB",
+            orig.size,
+            (255, 45, 65),
+        )
+
+        diff_visual.paste(red_highlight, mask=diff_mask)
+        diff_visual.save(diff_path)
 
     return {
         "status": "success",
