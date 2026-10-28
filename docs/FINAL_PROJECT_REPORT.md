@@ -226,4 +226,4 @@ OmniSight demonstrates an integrated approach to responsive UI inspection, deter
 2. **Playwright for Python**: Microsoft. *Playwright Library Documentation.* https://playwright.dev/python/
 3. **Pydantic**: Colvin, S. et al. *Data validation and settings management using Python type annotations.* https://docs.pydantic.dev/
 4. **W3C CSS Flexible Box Layout Module**: World Wide Web Consortium. *CSS Flexible Box Layout Module Level 1.* https://www.w3.org/TR/css-flexbox-1/
-5. **W3C Responsive Web Design Guidelines**: MDN Web Docs. *Responsive design concepts and media queries.* https://developer.mozilla.org/
+5. **W3C Responsive Web Design Guidelines**: MDN Web Docs. *Responsive design concepts and media queries.* https://developer.mozilla.org/en-US/docs/Learn_web_development/Core/CSS_layout/Responsive_Design
