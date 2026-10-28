@@ -186,16 +186,17 @@ The automated test suite was executed using Python 3.12.10 and pytest to validat
 
 ### 14. Screenshots & Evidence
 
-All visual evidence has been systematically generated and stored in `screenshots/evidence/`:
+The following screenshots document the OmniSight dashboard, baseline website layouts, responsive viewport inspections, issue detection, and visual comparison workflow. The evidence is stored in `screenshots/evidence/`.
 
-1. `01_dashboard_initial.png`: Initial dashboard state before inspection.
-2. `02_desktop_store_1366x768.png`: Baseline ShopHub rendering at desktop resolution.
-3. `03_mobile_store_375x812.png`: Baseline ShopHub rendering at mobile resolution illustrating the unwrapped button issue.
-4. `03b_mobile_store_390x844.png`: Evaluation on 390x844 mobile display.
-5. `04_tablet_store_768x1024.png`: Evaluation on 768x1024 tablet layout.
-6. `05_dashboard_issues_detected.png`: Dashboard evidence panel showing 1 detected layout issue.
-7. `06_dashboard_repaired_comparison.png`: Dashboard comparison card showing side-by-side Before and After images with green repair confirmation.
+1. `01_dashboard_initial.png` — Initial dashboard before inspection.
+2. `02_desktop_store_1366x768.png` — ShopHub baseline at desktop resolution.
+3. `03_mobile_store_375x812.png` — ShopHub layout at mobile resolution.
+4. `03b_mobile_store_390x844.png` — Additional mobile viewport inspection.
+5. `04_tablet_store_768x1024.png` — ShopHub layout at tablet resolution.
+6. `05_dashboard_issues_detected.png` — Dashboard showing the detected layout issue.
+7. `06_dashboard_repaired_comparison.png` — Before-and-after visual comparison panel showing the website rendering and issue visualization during the repair workflow.
 
+These screenshots provide visual evidence of the tested workflow. They should not, by themselves, be interpreted as proof that all detected defects were automatically resolved or that every viewport passed post-repair verification.
 ---
 
 ### 15. Limitations
