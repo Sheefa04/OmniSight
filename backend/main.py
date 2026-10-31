@@ -1,11 +1,30 @@
 import sys
 import asyncio
 import logging
+import os
 import re
 from pathlib import Path
 from urllib.parse import urlparse
 from uuid import uuid4
 
+from dotenv import load_dotenv
+from google import genai
+import json
+
+# Load environment variables from backend/.env (resolved relative to this
+# file so the correct .env is found regardless of the working directory).
+load_dotenv(dotenv_path=Path(__file__).resolve().parent / ".env")
+
+# Read the Gemini API key once at module load time.
+# The value is never printed, logged, or exposed in any response.
+GEMINI_API_KEY: str | None = os.getenv("GEMINI_API_KEY")
+GEMINI_MODEL = "gemini-3.8-flash"
+
+gemini_client = (
+    genai.Client(api_key=GEMINI_API_KEY)
+    if GEMINI_API_KEY
+    else None
+)
 if sys.platform == "win32":
     asyncio.set_event_loop_policy(asyncio.WindowsProactorEventLoopPolicy())
     try:
@@ -27,6 +46,8 @@ from playwright.async_api import (
     TimeoutError as PlaywrightTimeoutError,
 )
 from PIL import Image, ImageChops
+from google import genai
+import json
 
 from .repair_sandbox import evaluate_css_candidate
 
@@ -93,7 +114,6 @@ class SandboxRequest(BaseModel):
     viewport: str = "375x812"
     css: str
 
-
 class CompareScreenshotsRequest(BaseModel):
     # object permits invalid JSON types to reach our validation,
     # so we can return HTTP 400 instead of automatic HTTP 422.
@@ -103,6 +123,8 @@ class CompareScreenshotsRequest(BaseModel):
     repaired_viewport: str | None = None
 
 
+class VisionAuditRequest(BaseModel):
+    screenshot_filename: str
 # --------------------------------------------------
 # Helpers
 # --------------------------------------------------
@@ -613,6 +635,101 @@ async def detect_issues(request: InspectRequest):
             detail="Issue detection failed. Check the backend terminal.",
         )
 
+# --------------------------------------------------
+# Gemini Vision Audit
+# --------------------------------------------------
+
+@app.post("/vision-audit")
+async def vision_audit(request: VisionAuditRequest):
+    if gemini_client is None:
+        raise HTTPException(
+            status_code=503,
+            detail="Gemini API key is not configured.",
+        )
+
+    screenshot_path = _ensure_within_screenshot_dir(
+        request.screenshot_filename
+    )
+
+    try:
+        with Image.open(screenshot_path) as source_image:
+            image = source_image.convert("RGB")
+
+        prompt = """
+        Act as a professional website UI auditor.
+
+        Analyze only the visible evidence in this screenshot.
+        Identify genuine UI layout and responsiveness defects.
+        Do not invent defects or assume hidden website behavior.
+
+        Return valid JSON only, using this structure:
+        {
+          "summary": "Short audit summary",
+          "issues": [
+            {
+              "title": "Issue title",
+              "location": "Visible location",
+              "description": "What is visibly wrong",
+              "severity": "low, medium, or high",
+              "suggestion": "Suggested CSS or layout improvement"
+            }
+          ]
+        }
+
+        If no visible defects exist, return an empty issues array.
+        Do not execute or apply any suggested fixes.
+        """
+
+        response = await asyncio.to_thread(
+            gemini_client.models.generate_content,
+            model=GEMINI_MODEL,
+            contents=[image, prompt],
+        )
+
+        raw_text = response.text or ""
+        cleaned_text = re.sub(
+            r"^```(?:json)?\s*|\s*```$",
+            "",
+            raw_text.strip(),
+            flags=re.IGNORECASE,
+        )
+
+        try:
+            audit_result = json.loads(cleaned_text)
+        except json.JSONDecodeError:
+            logger.warning("Gemini returned invalid audit JSON")
+            raise HTTPException(
+                status_code=502,
+                detail="Gemini returned an invalid audit response.",
+            )
+
+        if (
+            not isinstance(audit_result, dict)
+            or not isinstance(audit_result.get("issues"), list)
+            or not isinstance(audit_result.get("summary"), str)
+        ):
+            raise HTTPException(
+                status_code=502,
+                detail="Gemini returned an unexpected audit structure.",
+            )
+
+        return {
+            "status": "success",
+            "screenshot": request.screenshot_filename,
+            "audit": audit_result,
+            "model": GEMINI_MODEL,
+            "detection_method": "Gemini Vision screenshot analysis",
+            "repair_applied": False,
+        }
+
+    except HTTPException:
+        raise
+    except Exception:
+        logger.exception("Gemini Vision audit failed")
+        raise HTTPException(
+            status_code=502,
+            detail="Vision audit failed. Check the backend terminal.",
+        )
 
 # --------------------------------------------------
 # What-If Repair Sandbox
@@ -700,6 +817,71 @@ async def repair_ui(request: RepairRequest):
                         'Temporary CSS repair applied to the demo button.'
                 };
             }""")
+                        verification = await page.evaluate("""() => {
+                const button = document.querySelector(
+                    'button.buggy-button, button.broken-button'
+                );
+
+                if (!button) {
+                    return {
+                        status: "not_applicable",
+                        message: "Target button was not found.",
+                        checks: []
+                    };
+                }
+
+                const parent = button.parentElement;
+                const buttonRect = button.getBoundingClientRect();
+                const parentRect = parent
+                    ? parent.getBoundingClientRect()
+                    : null;
+                const style = window.getComputedStyle(button);
+                const documentElement = document.documentElement;
+
+                const checks = [
+                    {
+                        name: "button_within_parent",
+                        passed: parentRect
+                            ? buttonRect.left >= parentRect.left - 1 &&
+                              buttonRect.right <= parentRect.right + 1
+                            : false,
+                        detail: "Button stays within its parent boundaries."
+                    },
+                    {
+                        name: "button_text_fits",
+                        passed: button.scrollWidth <= button.clientWidth + 1,
+                        detail: "Button content does not overflow horizontally."
+                    },
+                    {
+                        name: "text_wrapping_enabled",
+                        passed: style.whiteSpace !== "nowrap",
+                        detail: "Button text is allowed to wrap."
+                    },
+                    {
+                        name: "page_horizontal_overflow",
+                        passed: documentElement.scrollWidth <=
+                            documentElement.clientWidth + 1,
+                        detail: "Page has no horizontal overflow."
+                    }
+                ];
+
+                const passedCount = checks.filter(
+                    check => check.passed
+                ).length;
+
+                const status = passedCount === checks.length
+                    ? "resolved"
+                    : passedCount > 0
+                        ? "partially_resolved"
+                        : "not_resolved";
+
+                return {
+                    status,
+                    passed_count: passedCount,
+                    total_checks: checks.length,
+                    checks
+                };
+            }""")
 
             screenshot_name = (
                 f"repair_{current_viewport_key}_{uuid4().hex[:10]}.png"
@@ -713,6 +895,7 @@ async def repair_ui(request: RepairRequest):
                     "success" if repair_result["applied"] else "not_applied"
                 ),
                 "message": repair_result["message"],
+                "verification": verification,
                 "url": page.url,
                 "viewport": viewport,
                 "viewport_key": current_viewport_key,

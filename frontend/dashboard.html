@@ -648,6 +648,21 @@
                             <img id="inspectionScreenshot" alt="Latest website inspection screenshot"
                                 style="display:none; width:100%; height:auto; min-height:100px; object-fit:contain;">
                         </div>
+                        <div class="result-card" id="visionAuditPanel">
+    <h3>Gemini Vision Audit</h3>
+    <p>Analyze the captured screenshot to identify visible UI issues.</p>
+
+    <button id="visionAuditButton" class="primary-btn" type="button">
+        Run Vision Audit
+    </button>
+
+    <p id="visionAuditStatus" role="status"
+       style="font-size:12px; margin-top:12px; color:var(--muted);">
+        Run an inspection first to enable screenshot analysis.
+    </p>
+
+    <div id="visionAuditResults" aria-live="polite"></div>
+</div>
                     </article>
 
                     <article class="card">
@@ -662,6 +677,11 @@
                             style="font-size: 12px; color: var(--muted); line-height: 1.6;">
                             Ready to repair.
                         </p>
+                        <div id="repairVerificationResults"
+     role="status"
+     aria-live="polite"
+     style="margin-top: 12px; font-size: 13px; line-height: 1.7;">
+</div>
                     </article>
 
                     <article id="comparisonPanel" class="card comparison-card" style="grid-column: 1 / -1;">
@@ -1369,6 +1389,132 @@
 
         document.getElementById("repairButton")
             ?.addEventListener("click", repairDashboardUI);
+
+        // --------------------------------------------------
+        // Gemini Vision Audit
+        // --------------------------------------------------
+
+        async function runVisionAudit() {
+            const button = document.getElementById('visionAuditButton');
+            const statusEl = document.getElementById('visionAuditStatus');
+            const results = document.getElementById('visionAuditResults');
+            const screenshotImg = document.getElementById('inspectionScreenshot');
+
+            // Guard: require a loaded screenshot (display:block, non-empty src)
+            const screenshotVisible =
+                screenshotImg &&
+                screenshotImg.src &&
+                screenshotImg.src !== window.location.href &&
+                getComputedStyle(screenshotImg).display !== 'none';
+
+            if (!screenshotVisible) {
+                statusEl.textContent = 'Please run a successful inspection first.';
+                statusEl.style.color = 'var(--red)';
+                return;
+            }
+
+            const filename = extractFilename(screenshotImg.src);
+
+            if (!filename) {
+                statusEl.textContent = 'Could not identify the screenshot filename.';
+                statusEl.style.color = 'var(--red)';
+                return;
+            }
+
+            button.disabled = true;
+            button.textContent = 'Analyzing Screenshot...';
+            statusEl.textContent = 'Gemini Vision is analyzing the screenshot. Please wait...';
+            statusEl.style.color = 'var(--muted)';
+
+            // Clear any previous results safely
+            while (results.firstChild) {
+                results.removeChild(results.firstChild);
+            }
+
+            try {
+                const response = await fetch(API_BASE + '/vision-audit', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ screenshot_filename: filename })
+                });
+
+                let data;
+                try {
+                    data = await response.json();
+                } catch {
+                    throw new Error('Backend returned an invalid response. Check FastAPI logs.');
+                }
+
+                if (!response.ok || data.status !== 'success') {
+                    throw new Error(formatApiError(data, 'Vision audit failed.'));
+                }
+
+                const audit = data.audit;
+
+                const summary = document.createElement('p');
+                summary.textContent = audit.summary;
+                summary.style.cssText = 'margin:12px 0 8px; line-height:1.6; font-size:12px;';
+                results.appendChild(summary);
+
+                const issues = Array.isArray(audit.issues) ? audit.issues : [];
+
+                if (issues.length === 0) {
+                    const none = document.createElement('p');
+                    none.textContent = 'No visible UI issues were identified in this screenshot.';
+                    none.style.cssText = 'font-size:12px; color:var(--muted); margin-top:8px;';
+                    results.appendChild(none);
+                }
+
+                issues.forEach(function (issue) {
+                    const card = document.createElement('div');
+                    card.className = 'result-card';
+                    card.style.marginTop = '12px';
+
+                    const title = document.createElement('h3');
+                    title.textContent = issue.title || 'Visual issue';
+
+                    const severityText = String(issue.severity || 'unspecified').toLowerCase();
+                    const badge = document.createElement('span');
+                    badge.textContent = severityText.toUpperCase();
+                    badge.style.cssText =
+                        'display:inline-block; margin:4px 0 8px; padding:2px 8px; border-radius:10px; font-size:10px; font-weight:700;' +
+                        (severityText === 'high'
+                            ? 'background:#fff0ed; color:#994c40;'
+                            : severityText === 'medium'
+                            ? 'background:#faf3e8; color:#8a6a1f;'
+                            : 'background:#eff6ed; color:#285a48;');
+
+                    const location = document.createElement('p');
+                    location.textContent = 'Location: ' + (issue.location || 'Not specified');
+
+                    const description = document.createElement('p');
+                    description.textContent = issue.description || '';
+
+                    const suggestion = document.createElement('p');
+                    suggestion.textContent = 'Suggested improvement: ' + (issue.suggestion || 'Not provided');
+                    suggestion.style.cssText = 'font-style:italic;';
+
+                    card.append(title, badge, location, description, suggestion);
+                    results.appendChild(card);
+                });
+
+                statusEl.textContent =
+                    'Vision audit completed using ' + (data.model || 'Gemini') +
+                    '. No repairs were applied.';
+                statusEl.style.color = 'var(--green)';
+
+            } catch (error) {
+                console.error('OmniSight Vision Audit error:', error);
+                statusEl.textContent = 'Vision audit failed: ' + error.message;
+                statusEl.style.color = 'var(--red)';
+            } finally {
+                button.disabled = false;
+                button.textContent = 'Run Vision Audit';
+            }
+        }
+
+        document.getElementById('visionAuditButton')
+            ?.addEventListener('click', runVisionAudit);
 
         console.log('OmniSight dashboard JavaScript loaded.');
         if (urlInput && !urlInput.value.trim()) urlInput.value = 'https://example.com';

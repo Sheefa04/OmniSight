@@ -1,4 +1,4 @@
-﻿# OmniSight — Automated Test Results
+# OmniSight — Automated Test Results
 
 **Project:** OmniSight: Multimodal UI Self-Healing & RPA Agent
 **Test date:** 29 October 2026
@@ -40,3 +40,29 @@ Run the test command from the repository root using the Python 3.12 virtual envi
 ## 6. Status
 
 This document records the test output supplied during the final-review preparation. Re-run the complete suite before final submission and update this document if the result changes.
+
+---
+
+## 7. Gemini Vision Audit Integration — 31 October 2026
+
+A new test run was executed after completing the Gemini Vision Audit frontend integration.
+
+**Command:**
+```powershell
+.\backend\.venv312\Scripts\python.exe -m pytest tests/test_omnisight_workflow.py tests/test_demo_store.py tests/test_compare_screenshots.py -v
+```
+
+**Result:**
+- **test_omnisight_workflow.py** — 10 passed
+- **test_demo_store.py** — 2 passed
+- **test_compare_screenshots.py** — 11 passed (4 Pillow DeprecationWarnings, non-fatal)
+- **Total: 23 passed, 0 failed**
+
+Additional backend validation tests for the `/vision-audit` endpoint:
+- Path traversal rejected (HTTP 400) ✅
+- Missing file rejected (HTTP 404) ✅
+- Subdirectory path rejected (HTTP 400) ✅
+- Live Gemini Vision API call with real screenshot ✅ — 2 genuine UI issues detected
+- `repair_applied: false` confirmed in all responses ✅
+
+See `docs/GEMINI_VISION_AUDIT.md` for the full integration documentation and actual Gemini findings.

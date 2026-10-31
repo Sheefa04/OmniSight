@@ -12,3 +12,10 @@ screenshots/test_screenshot.png
 # Generated inspection screenshots
 backend/screenshots/inspection_*.png
 backend/screenshots/repair_*.png
+
+# Secret files — never commit API keys or credentials
+.env
+.env.*
+!.env.example
+backend/.env
+!backend/.env.example

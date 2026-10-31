@@ -174,6 +174,107 @@ function extractFilename(urlOrPath) {
   return parts.pop() || '';
 }
 
+// --------------------------------------------------
+// Gemini Vision Audit
+// --------------------------------------------------
+
+async function runVisionAudit() {
+    const button = document.getElementById('visionAuditButton');
+    const status = document.getElementById('visionAuditStatus');
+    const results = document.getElementById('visionAuditResults');
+    const screenshot = document.getElementById('inspectionScreenshot');
+
+    if (!screenshot || !screenshot.src || screenshot.hidden) {
+        status.textContent = 'Please run a successful inspection first.';
+        status.style.color = 'var(--red)';
+        return;
+    }
+
+    const filename = extractFilename(screenshot.src);
+
+    if (!filename) {
+        status.textContent = 'Could not identify the screenshot filename.';
+        status.style.color = 'var(--red)';
+        return;
+    }
+
+    button.disabled = true;
+    button.textContent = 'Analyzing Screenshot...';
+    status.textContent = 'Gemini Vision is analyzing the screenshot. Please wait...';
+    status.style.color = 'var(--muted)';
+    results.replaceChildren();
+
+    try {
+        const response = await fetch(API_BASE + '/vision-audit', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                screenshot_filename: filename
+            })
+        });
+
+        const data = await response.json();
+
+        if (!response.ok || data.status !== 'success') {
+            throw new Error(formatApiError(data, 'Vision audit failed.'));
+        }
+
+        const audit = data.audit;
+
+        const summary = document.createElement('p');
+        summary.textContent = audit.summary;
+        summary.style.cssText = 'margin:12px 0; line-height:1.6;';
+        results.appendChild(summary);
+
+        const issues = Array.isArray(audit.issues) ? audit.issues : [];
+
+        if (issues.length === 0) {
+            const message = document.createElement('p');
+            message.textContent = 'No visible UI issues were identified.';
+            results.appendChild(message);
+        }
+
+        issues.forEach(issue => {
+            const card = document.createElement('div');
+            card.className = 'result-card';
+
+            const title = document.createElement('h3');
+            title.textContent = issue.title || 'Visual issue';
+
+            const location = document.createElement('p');
+            location.textContent = 'Location: ' + (issue.location || 'Not specified');
+
+            const description = document.createElement('p');
+            description.textContent = issue.description || '';
+
+            const severity = document.createElement('p');
+            severity.textContent = 'Severity: ' + (issue.severity || 'Not specified');
+
+            const suggestion = document.createElement('p');
+            suggestion.textContent = 'Suggested improvement: ' + (issue.suggestion || 'Not provided');
+
+            card.append(title, location, description, severity, suggestion);
+            results.appendChild(card);
+        });
+
+        status.textContent =
+            'Vision audit completed using ' + (data.model || 'Gemini') +
+            '. No repairs were applied.';
+        status.style.color = 'var(--green)';
+
+    } catch (error) {
+        console.error('OmniSight Vision Audit error:', error);
+        status.textContent = 'Vision audit failed: ' + error.message;
+        status.style.color = 'var(--red)';
+    } finally {
+        button.disabled = false;
+        button.textContent = 'Run Vision Audit';
+    }
+}
+
+document.getElementById('visionAuditButton')
+    ?.addEventListener('click', runVisionAudit);
+    
 function showNotice(el, message, type = 'info') {
   if (!el) {
     console.error(message);
