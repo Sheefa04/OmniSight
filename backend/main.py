@@ -817,7 +817,7 @@ async def repair_ui(request: RepairRequest):
                         'Temporary CSS repair applied to the demo button.'
                 };
             }""")
-                        verification = await page.evaluate("""() => {
+            verification = await page.evaluate("""() => {
                 const button = document.querySelector(
                     'button.buggy-button, button.broken-button'
                 );
@@ -1012,38 +1012,35 @@ def compare_images(
         if total_pixels
         else 0
     )
-
     diff_name = f"diff_{uuid4().hex[:10]}.png"
     diff_path = SCREENSHOT_DIR / diff_name
 
-    # When screenshots are identical, save the original as the
-    # difference image so the zero-difference case is handled correctly.
-   
+    # Preserve original screenshot and highlight changed areas
+    # with a semi-transparent red overlay.
     if diff_pixels == 0:
-        # Preserve existing behavior for identical screenshots.
         orig.save(diff_path)
     else:
-        # Show changed pixels in red against a light background.
         diff_gray = diff.convert("L")
         diff_mask = diff_gray.point(
             lambda value: 255 if value > 20 else 0
         )
 
-        diff_visual = Image.new(
-            "RGB",
+        diff_overlay = Image.new(
+            "RGBA",
             orig.size,
-            (245, 245, 245),
+            (255, 45, 65, 0),
         )
 
-        red_highlight = Image.new(
-            "RGB",
-            orig.size,
-            (255, 45, 65),
+        diff_overlay.putalpha(
+            diff_mask.point(lambda value: int(value * 0.45))
         )
 
-        diff_visual.paste(red_highlight, mask=diff_mask)
-        diff_visual.save(diff_path)
+        diff_visual = Image.alpha_composite(
+            orig.convert("RGBA"),
+            diff_overlay,
+        )
 
+        diff_visual.convert("RGB").save(diff_path)
     return {
         "status": "success",
         "original_url": f"/screenshots/{original_path.name}",

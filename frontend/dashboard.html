@@ -723,7 +723,7 @@
                         <h2>ShopHub Demo</h2>
                         <p>A sample shopping website for testing layout and responsive behaviour.</p>
                         <p>✓ Product listing<br>✓ Responsive layout<br>✓ Visual consistency</p>
-                        <a href="store.html" target="_blank" rel="noopener">Open Demo Store ↗</a>
+                       <a href="/frontend/store.html" target="_blank" rel="noopener">Open Demo Store ↗</a>
                     </article>
                 </section>
 
@@ -1091,7 +1091,7 @@
                     if (window.location.protocol === 'file:') {
                         urlInput.value = 'http://127.0.0.1:8000/frontend/store.html';
                     } else {
-                        urlInput.value = new URL('store.html', window.location.href).href;
+                     urlInput.value = new URL('/frontend/store.html', window.location.origin).href;
                     }
                 }
             });
@@ -1278,6 +1278,40 @@
 
                 if (!repairRes.ok) {
                     throw new Error(formatApiError(repairData, "Repair request failed with HTTP " + repairRes.status));
+                }
+
+                // Step 2.1: Display automatic post-repair verification
+                const verificationContainer = document.getElementById("repairVerificationResults");
+
+                if (verificationContainer) {
+                    const verification = repairData.verification;
+
+                    if (verification && Array.isArray(verification.checks)) {
+                        const heading = document.createElement("strong");
+                        heading.textContent =
+                            `Post-Repair Verification: ${verification.status.replaceAll("_", " ").toUpperCase()} ` +
+                            `(${verification.passed_count}/${verification.total_checks} passed)`;
+
+                        const resultsList = document.createElement("ul");
+                        resultsList.style.paddingLeft = "20px";
+                        resultsList.style.marginTop = "8px";
+
+                        verification.checks.forEach(check => {
+                            const item = document.createElement("li");
+                            item.textContent =
+                                `[${check.passed ? "PASS" : "FAIL"}] ${check.name.replaceAll("_", " ")} - ${check.detail}`;
+                            item.style.color = check.passed ? "var(--green)" : "var(--red)";
+                            resultsList.appendChild(item);
+                        });
+
+                        verificationContainer.replaceChildren(heading, resultsList);
+                        verificationContainer.style.color =
+                            verification.status === "resolved" ? "var(--green)" : "var(--red)";
+                    } else {
+                        verificationContainer.textContent =
+                            "Post-repair verification data is unavailable.";
+                        verificationContainer.style.color = "var(--muted)";
+                    }
                 }
 
                 // Step 3: Update After Repair screenshot
