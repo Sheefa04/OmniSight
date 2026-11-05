@@ -362,6 +362,16 @@
             font-size: 10px;
         }
 
+        .status-pill.repair {
+            background: #f0ecfa;
+            color: #5b4a8a;
+        }
+
+        .status-pill.rejected {
+            background: #fff0ed;
+            color: #994c40;
+        }
+
         .result-card {
             margin-top: 20px;
             padding: 15px;
@@ -437,6 +447,120 @@
             text-align: center;
             font-size: 10px;
         }
+
+        /* ---- Priority Badges ---- */
+        .priority-badge {
+            display: inline-block;
+            padding: 3px 10px;
+            border-radius: 20px;
+            font-size: 10px;
+            font-weight: 700;
+            margin-right: 6px;
+            vertical-align: middle;
+        }
+
+        .priority-critical { background: #ffddd9; color: #8b1a10; }
+        .priority-high     { background: #ffe9d5; color: #8b4513; }
+        .priority-medium   { background: #fdf3d0; color: #7a5a00; }
+        .priority-low      { background: #e6f4ea; color: #1a6b3c; }
+
+        /* ---- Issue Priority Panel ---- */
+        #issuesPriorityPanel {
+            margin-top: 16px;
+            padding: 18px;
+            border: 1px solid var(--line);
+            border-radius: 12px;
+            background: var(--white);
+            display: none;
+        }
+
+        #issuesPriorityPanel h3 {
+            font-size: 14px;
+            margin-bottom: 4px;
+        }
+
+        .priority-issue-card {
+            padding: 12px;
+            margin-bottom: 10px;
+            border: 1px solid var(--line);
+            border-radius: 10px;
+            font-size: 12px;
+            line-height: 1.6;
+        }
+
+        .priority-issue-card:last-child {
+            margin-bottom: 0;
+        }
+
+        .priority-issue-title {
+            font-weight: 700;
+            font-size: 12px;
+            margin-bottom: 4px;
+        }
+
+        .priority-reason {
+            color: var(--muted);
+            font-size: 11px;
+            margin-top: 5px;
+            font-style: italic;
+        }
+
+        .priority-suggestion {
+            color: var(--green);
+            font-size: 11px;
+            margin-top: 4px;
+        }
+
+        /* ---- Repair Review Panel ---- */
+        #repairReviewPanel {
+            margin: 12px 0;
+            padding: 16px;
+            border: 1px solid #e3d5b0;
+            border-radius: 12px;
+            background: #fdf8ed;
+            display: none;
+            font-size: 12px;
+            line-height: 1.7;
+        }
+
+        #repairReviewPanel h4 {
+            font-size: 13px;
+            margin-bottom: 8px;
+            color: var(--ink);
+        }
+
+        .repair-action-row {
+            display: flex;
+            gap: 10px;
+            margin-top: 12px;
+            flex-wrap: wrap;
+        }
+
+        .approve-btn {
+            padding: 9px 18px;
+            border: none;
+            border-radius: 9px;
+            background: #28665b;
+            color: white;
+            font-size: 12px;
+            font-weight: 700;
+            cursor: pointer;
+        }
+
+        .approve-btn:disabled { opacity: .6; cursor: wait; }
+
+        .reject-btn {
+            padding: 9px 18px;
+            border: 1px solid #c0c0b0;
+            border-radius: 9px;
+            background: var(--white);
+            color: #666;
+            font-size: 12px;
+            font-weight: 700;
+            cursor: pointer;
+        }
+
+        .reject-btn:disabled { opacity: .6; cursor: wait; }
 
         @media (max-width: 1100px) {
             .form-grid {
@@ -596,6 +720,13 @@
                         </div>
                     </form>
                     <div class="notice" id="notice" role="status" aria-live="polite"></div>
+
+                    <!-- Smart Issue Prioritization Panel -->
+                    <div id="issuesPriorityPanel">
+                        <h3>Smart Issue Prioritization <span style="font-size:10px; font-weight:400; color:var(--muted);">(rule-based)</span></h3>
+                        <p id="issuesPriorityOrder" style="font-size:11px; color:var(--muted); margin-bottom:12px;"></p>
+                        <div id="issuesPriorityList"></div>
+                    </div>
                 </section>
 
                 <section class="metrics">
@@ -667,14 +798,29 @@
 
                     <article class="card">
                         <h2>UI Repair</h2>
-                        <p>Inspect the demo website, detect issues, then approve a temporary repair.</p>
+                        <p>Inspect the demo website, detect issues, then review and approve a temporary repair.</p>
 
                         <button id="repairButton" class="primary-btn" type="button" style="margin: 12px 0 8px;">
-                            Approve & Repair UI
+                            Review &amp; Repair UI →
                         </button>
 
+                        <!-- Human-in-the-Loop Safety Review Panel -->
+                        <div id="repairReviewPanel">
+                            <h4>⚠ Proposed Repair — Requires Your Approval</h4>
+                            <p id="repairReviewSummary" style="margin-bottom:6px; color:var(--ink);"></p>
+                            <ul id="repairReviewDetails" style="padding-left:18px; margin:8px 0; font-size:11px; color:var(--muted);"></ul>
+                            <p style="font-size:11px; color:var(--muted); margin-top:8px;">
+                                <strong>Scope:</strong> Temporary CSS injection in a Playwright browser session only.
+                                Source files on disk are <strong>never</strong> modified.
+                            </p>
+                            <div class="repair-action-row">
+                                <button id="approveRepairBtn" class="approve-btn" type="button">✓ Approve Repair</button>
+                                <button id="rejectRepairBtn" class="reject-btn" type="button">✕ Reject</button>
+                            </div>
+                        </div>
+
                         <p id="repairStatus" role="status"
-                            style="font-size: 12px; color: var(--muted); line-height: 1.6;">
+                            style="font-size: 12px; color: var(--muted); line-height: 1.6; margin-top:8px;">
                             Ready to repair.
                         </p>
                         <div id="repairVerificationResults"
@@ -787,17 +933,500 @@
         let successfulRepairs = 0;
         let attempts = 0;
 
+        // --------------------------------------------------
+        // Shared utilities
+        // --------------------------------------------------
+
         function showNotice(message, isError = false) {
             if (!notice) {
                 console.error(message);
                 return;
             }
-
             notice.className = isError ? 'notice show error' : 'notice show';
             notice.textContent = message;
         }
 
-        function addHistoryItem(titleText, url, viewportText) {
+        function formatApiError(errorObj, fallback = 'Operation failed.') {
+            if (!errorObj) return fallback;
+            if (typeof errorObj === 'string') return errorObj;
+
+            if (errorObj.detail) {
+                if (typeof errorObj.detail === 'string') {
+                    return errorObj.detail;
+                }
+                if (Array.isArray(errorObj.detail)) {
+                    return errorObj.detail
+                        .map(item => {
+                            if (typeof item === 'string') return item;
+                            if (item && item.msg) {
+                                const loc = Array.isArray(item.loc)
+                                    ? item.loc.filter(x => x !== 'body').join('.')
+                                    : '';
+                                return loc ? `${loc}: ${item.msg}` : item.msg;
+                            }
+                            return JSON.stringify(item);
+                        })
+                        .join('; ');
+                }
+                if (typeof errorObj.detail === 'object') {
+                    return JSON.stringify(errorObj.detail);
+                }
+            }
+
+            if (typeof errorObj.message === 'string' && errorObj.message) {
+                return errorObj.message;
+            }
+
+            try {
+                return JSON.stringify(errorObj);
+            } catch {
+                return fallback;
+            }
+        }
+
+        function extractFilename(urlOrPath) {
+            if (!urlOrPath || typeof urlOrPath !== 'string') return '';
+            const clean = urlOrPath.split('?')[0].split('#')[0];
+            const parts = clean.replace(/\\/g, '/').split('/');
+            return parts.pop() || '';
+        }
+
+        // --------------------------------------------------
+        // Audit History — Feature 1
+        // --------------------------------------------------
+
+        /**
+         * Renders a single audit record into a history-item div.
+         * @param {Object} record
+         * @returns {HTMLElement}
+         */
+
+function renderHistoryRecord(record) {
+    const item = document.createElement('div');
+    item.className = 'history-item';
+
+    const eventType = record.event_type || 'inspection';
+    const isRepair = eventType === 'repair';
+
+    // Title
+    const title = document.createElement('strong');
+
+    const shortUrl = (() => {
+        try {
+            return new URL(record.url).hostname;
+        } catch {
+            return record.url || 'Unknown URL';
+        }
+    })();
+
+    title.textContent = `${isRepair ? '🔧 Repair' : '🔍 Inspection'} — ${shortUrl}`;
+
+    // URL and viewport
+    const metaUrl = document.createElement('p');
+    metaUrl.className = 'history-meta';
+    metaUrl.textContent =
+        `${record.url || '—'} · Viewport: ${record.viewport || '—'}`;
+
+    // Timestamp
+    const metaTime = document.createElement('p');
+    metaTime.className = 'history-meta';
+
+    if (record.timestamp) {
+        const parsedDate = new Date(record.timestamp);
+        metaTime.textContent = Number.isNaN(parsedDate.getTime())
+            ? String(record.timestamp)
+            : parsedDate.toLocaleString();
+    }
+
+    // Status badge
+    const pill = document.createElement('span');
+    pill.className = 'status-pill';
+
+    const repairStatus = record.repair_result?.status || '';
+    const approval = record.approval_state || 'not_confirmed';
+
+    if (isRepair) {
+        if (approval === 'rejected') {
+            pill.classList.add('rejected');
+            pill.textContent = 'Repair Rejected';
+        } else if (repairStatus === 'success') {
+            pill.classList.add('repair');
+            pill.textContent = 'Repair Applied';
+        } else if (['error', 'failed'].includes(repairStatus)) {
+            pill.classList.add('failed');
+            pill.textContent = 'Repair Failed';
+        } else if (['not_applied', 'unsuccessful'].includes(repairStatus)) {
+            pill.classList.add('unsuccessful');
+            pill.textContent = 'Repair Unsuccessful';
+        } else {
+            pill.classList.add('repair');
+            pill.textContent = 'Repair Status Unknown';
+        }
+    } else {
+        const issues = Array.isArray(record.detected_issues)
+            ? record.detected_issues
+            : [];
+
+        const isFailed =
+            ['error', 'failed'].includes(repairStatus) ||
+            issues.some(issue =>
+                typeof issue === 'object' &&
+                issue !== null &&
+                issue.type === 'inspection_failed'
+            );
+
+        if (isFailed) {
+            pill.classList.add('failed');
+            pill.textContent = 'Inspection Failed';
+        } else {
+            pill.classList.add('success');
+            pill.textContent =
+                `Inspection · ${issues.length} issue${issues.length === 1 ? '' : 's'} found`;
+        }
+    }
+
+    item.append(title, metaUrl, metaTime, pill);
+
+    // Approval state
+    if (isRepair) {
+        const approvalMeta = document.createElement('p');
+        approvalMeta.className = 'history-meta';
+        approvalMeta.textContent =
+            `Approval: ${approval.replaceAll('_', ' ')}`;
+        item.appendChild(approvalMeta);
+    }
+
+    // Detected issue details
+    const detectedIssues = Array.isArray(record.detected_issues)
+        ? record.detected_issues
+        : [];
+
+    if (detectedIssues.length > 0) {
+        const issueHeading = document.createElement('p');
+        issueHeading.className = 'history-meta';
+        issueHeading.textContent = 'Detected Issues:';
+        item.appendChild(issueHeading);
+
+        const issueList = document.createElement('ul');
+        issueList.className = 'history-issue-list';
+
+        detectedIssues.forEach(issue => {
+            const listItem = document.createElement('li');
+
+            let description;
+
+            if (typeof issue === 'string') {
+                description = issue;
+            } else if (issue && typeof issue === 'object') {
+                description =
+                    issue.description ||
+                    issue.message ||
+                    issue.type ||
+                    'Unspecified issue';
+            } else {
+                description = 'Unspecified issue';
+            }
+
+            listItem.textContent = description;
+            issueList.appendChild(listItem);
+        });
+
+        item.appendChild(issueList);
+    }
+
+    // Repair result message
+    if (isRepair && record.repair_result?.message) {
+        const resultMeta = document.createElement('p');
+        resultMeta.className = 'history-meta';
+        resultMeta.textContent = `Result: ${record.repair_result.message}`;
+        item.appendChild(resultMeta);
+    }
+
+    // Verification summary
+    if (isRepair && record.verification?.status) {
+        const verMeta = document.createElement('p');
+        verMeta.className = 'history-meta';
+
+        verMeta.textContent =
+            `Verification: ${record.verification.status.replaceAll('_', ' ')} ` +
+            `(${record.verification.passed_count || 0}/` +
+            `${record.verification.total_checks || 0} checks passed)`;
+
+        item.appendChild(verMeta);
+    }
+
+    return item;
+}
+
+
+        /**
+         * Loads and renders the full audit history from the backend.
+         */
+
+async function loadAuditHistory() {
+    try {
+        const res = await fetch(API_BASE + '/audit-history', {
+            cache: 'no-store'
+        });
+
+        if (!res.ok) {
+            throw new Error(`Audit History API returned ${res.status}`);
+        }
+
+        const data = await res.json();
+
+        if (data.status && data.status !== 'success') {
+            throw new Error(data.message || 'Unable to load audit history.');
+        }
+
+        const records = Array.isArray(data.records)
+            ? data.records
+            : [];
+
+        if (historyList) {
+            historyList.replaceChildren();
+        }
+
+        // Empty history state
+        if (records.length === 0) {
+            if (emptyHistory) {
+                emptyHistory.hidden = false;
+                emptyHistory.textContent = 'No audit history available yet.';
+            }
+
+            if (historyList) {
+                historyList.hidden = true;
+            }
+
+            return;
+        }
+
+        if (emptyHistory) {
+            emptyHistory.hidden = true;
+        }
+
+        if (historyList) {
+            historyList.hidden = false;
+
+            // Prevent duplicate records using record IDs
+            const renderedIds = new Set();
+
+            records.forEach(record => {
+                if (!record || typeof record !== 'object') {
+                    return;
+                }
+
+                if (record.id !== undefined && record.id !== null) {
+                    const recordId = String(record.id);
+
+                    if (renderedIds.has(recordId)) {
+                        return;
+                    }
+
+                    renderedIds.add(recordId);
+                }
+
+                historyList.appendChild(renderHistoryRecord(record));
+            });
+        }
+
+    } catch (err) {
+        console.error('OmniSight: Audit history load error:', err);
+
+        if (emptyHistory) {
+            emptyHistory.hidden = false;
+            emptyHistory.textContent =
+                'Unable to load audit history. Please check the backend connection.';
+        }
+
+        if (historyList) {
+            historyList.hidden = true;
+        }
+    }
+}
+
+        /**
+         * Saves a new audit record to the backend and refreshes history.
+         * @param {Object} payload
+         */
+        async function saveAuditRecord(payload) {
+            try {
+                const res = await fetch(API_BASE + '/audit-history', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                if (!res.ok) {
+                    const errData = await res.json().catch(() => ({}));
+                    console.warn('OmniSight: Could not save audit record:', formatApiError(errData));
+                    return;
+                }
+                // Refresh the displayed history after saving
+                await loadAuditHistory();
+            } catch (err) {
+                console.warn('OmniSight: Audit record save error:', err);
+                // Fail silently — does not crash the dashboard
+            }
+        }
+
+        // --------------------------------------------------
+        // Smart Issue Prioritization — Feature 2
+        // --------------------------------------------------
+
+        const PRIORITY_ORDER = ['critical', 'high', 'medium', 'low'];
+
+        /**
+         * Returns priority level, reason, and suggestion for an issue.
+         * Uses transparent rule-based logic (not AI).
+         */
+        function classifyIssuePriority(issue, viewport) {
+            const type = (issue.type || '').toLowerCase();
+            const isMobile = viewport && (viewport.startsWith('375x') || viewport.startsWith('390x'));
+
+            // Critical: page-level overflow (affects all users on this viewport)
+            if (type === 'page-horizontal-overflow') {
+                return {
+                    priority: 'critical',
+                    reason: 'The entire page overflows the viewport width, causing horizontal scroll for all users on this device.',
+                    suggestion: 'Add `overflow-x: hidden` on `body` or fix the element causing the overflow.'
+                };
+            }
+
+            // Critical: element overflow on mobile (high user impact on mobile devices)
+            if (type === 'horizontal-overflow' && isMobile) {
+                return {
+                    priority: 'critical',
+                    reason: 'Element extends beyond the viewport on a mobile-sized screen, causing layout breakage for mobile users.',
+                    suggestion: 'Use `max-width: 100%` and `overflow-wrap: anywhere` on the offending element.'
+                };
+            }
+
+            // High: oversized button (directly blocks user interaction)
+            if (type === 'oversized-button') {
+                return {
+                    priority: 'high',
+                    reason: 'An oversized button blocks or overflows its container, potentially preventing users from interacting with nearby controls.',
+                    suggestion: 'Apply `max-width: 100%; white-space: normal; overflow-wrap: anywhere` to the button.'
+                };
+            }
+
+            // High: horizontal overflow on desktop/tablet
+            if (type === 'horizontal-overflow') {
+                return {
+                    priority: 'high',
+                    reason: 'Element overflows the viewport width, causing horizontal scroll and obscuring content.',
+                    suggestion: 'Constrain the element width using `max-width: 100%` or a responsive layout.'
+                };
+            }
+
+            // Medium: positioning issues (may cause overlapping or hidden content)
+            if (type === 'positioning') {
+                return {
+                    priority: 'medium',
+                    reason: 'An absolutely-positioned element starts above the visible viewport, potentially hiding important content.',
+                    suggestion: 'Review position and top/margin values; ensure the element is within the visible area.'
+                };
+            }
+
+            // Low: other detected issues
+            return {
+                priority: 'low',
+                reason: 'Issue detected via DOM/style heuristics; has limited direct user impact compared to overflow or interaction problems.',
+                suggestion: 'Review the element styling and test across viewports.'
+            };
+        }
+
+        /**
+         * Returns issues sorted by priority (critical → high → medium → low).
+         */
+        function prioritizeIssues(issues, viewport) {
+            if (!Array.isArray(issues)) return [];
+            return issues
+                .map(issue => ({
+                    ...issue,
+                    ...classifyIssuePriority(issue, viewport)
+                }))
+                .sort((a, b) =>
+                    PRIORITY_ORDER.indexOf(a.priority) - PRIORITY_ORDER.indexOf(b.priority)
+                );
+        }
+
+        /**
+         * Renders the prioritized issues panel below the inspection form.
+         */
+        function renderPrioritizedIssues(issues, viewport) {
+            const panel = document.getElementById('issuesPriorityPanel');
+            const listEl = document.getElementById('issuesPriorityList');
+            const orderEl = document.getElementById('issuesPriorityOrder');
+
+            if (!panel || !listEl) return;
+
+            if (!issues || issues.length === 0) {
+                panel.style.display = 'none';
+                return;
+            }
+
+            const prioritized = prioritizeIssues(issues, viewport);
+
+            // Count by priority
+            const counts = { critical: 0, high: 0, medium: 0, low: 0 };
+            prioritized.forEach(i => {
+                if (counts[i.priority] !== undefined) counts[i.priority]++;
+            });
+
+            const summary = Object.entries(counts)
+                .filter(([, n]) => n > 0)
+                .map(([p, n]) => `${n} ${p}`)
+                .join(' · ');
+
+            if (orderEl) {
+                orderEl.textContent = `Recommended repair order: ${summary || 'No issues found'}`;
+            }
+
+            listEl.innerHTML = '';
+            prioritized.forEach((issue, idx) => {
+                const card = document.createElement('div');
+                card.className = 'priority-issue-card';
+
+                const badge = document.createElement('span');
+                badge.className = `priority-badge priority-${issue.priority}`;
+                badge.textContent = issue.priority.toUpperCase();
+
+                const title = document.createElement('div');
+                title.className = 'priority-issue-title';
+                title.textContent = `#${idx + 1} · ${issue.type || 'unknown'} on <${issue.element || '?'}>`;
+
+                const desc = document.createElement('p');
+                desc.style.cssText = 'margin:4px 0; font-size:12px;';
+                desc.textContent = issue.description || '';
+
+                const reason = document.createElement('p');
+                reason.className = 'priority-reason';
+                reason.textContent = '📋 Why this priority: ' + issue.reason;
+
+                const suggestion = document.createElement('p');
+                suggestion.className = 'priority-suggestion';
+                suggestion.textContent = '💡 Suggestion: ' + issue.suggestion;
+
+                card.append(badge, title, desc, reason, suggestion);
+                listEl.appendChild(card);
+            });
+
+            panel.style.display = 'block';
+        }
+
+        // --------------------------------------------------
+        // History item helper (single definition — no duplicate)
+        // --------------------------------------------------
+
+        function addHistoryItem(
+            titleText,
+            url,
+            viewportText,
+            eventType = 'inspection',
+            statusText = 'Success',
+            timestamp = null
+        ) {
             if (!historyList || !emptyHistory) {
                 console.error('History elements are missing from the HTML.');
                 return;
@@ -807,22 +1436,43 @@
             item.className = 'history-item';
 
             const title = document.createElement('strong');
-            title.textContent = titleText || 'Website inspected';
+            title.textContent = titleText || 'Website activity';
 
             const meta = document.createElement('p');
             meta.className = 'history-meta';
-            meta.textContent = `${url || ''} · ${viewportText}`;
+
+            const eventLabel =
+                eventType === 'repair' ? 'Repair' : 'Inspection';
+
+            meta.textContent =
+                `${eventLabel} · ${url || 'URL unavailable'} · ${viewportText || 'Viewport unavailable'}`;
 
             const status = document.createElement('span');
             status.className = 'status-pill';
-            status.textContent = 'Success';
+            status.textContent = statusText || 'Completed';
 
             item.append(title, meta, status);
+
+            if (timestamp) {
+                const date = new Date(timestamp);
+
+                if (!Number.isNaN(date.getTime())) {
+                    const time = document.createElement('p');
+                    time.className = 'history-meta';
+                    time.textContent = date.toLocaleString();
+                    item.appendChild(time);
+                }
+            }
+
             historyList.prepend(item);
 
             emptyHistory.hidden = true;
             historyList.hidden = false;
         }
+
+        // --------------------------------------------------
+        // Screenshot update helper
+        // --------------------------------------------------
 
         function updateScreenshot(data, fallbackUrl) {
             if (!screenshot || !screenshotPlaceholder || !screenshotCaption) {
@@ -885,12 +1535,16 @@
             const beforePlaceholder = document.getElementById('beforeRepairPlaceholder');
             if (beforeImage) {
                 beforeImage.src = imageUrl;
-                // Phase 3: store the viewport key so repair can validate mismatch
+                // Store the viewport key so repair can validate mismatch
                 beforeImage.dataset.viewport = (viewportInput ? viewportInput.value : '') || '';
                 beforeImage.style.display = 'block';
                 if (beforePlaceholder) beforePlaceholder.style.display = 'none';
             }
         }
+
+        // --------------------------------------------------
+        // Issue detection
+        // --------------------------------------------------
 
         async function detectIssues(url, viewport) {
             if (issuesCount) issuesCount.textContent = '…';
@@ -939,6 +1593,9 @@
                         `${count} issue${count === 1 ? '' : 's'} found by DOM/style heuristics`;
                 }
 
+                // Render smart prioritization panel
+                renderPrioritizedIssues(issues, viewport);
+
                 console.log('OmniSight issue detection result:', result);
                 return result;
 
@@ -955,6 +1612,10 @@
                 return null;
             }
         }
+
+        // --------------------------------------------------
+        // Inspection form submit handler
+        // --------------------------------------------------
 
         if (!form || !urlInput || !viewportInput || !submitButton) {
             console.error(
@@ -1037,6 +1698,7 @@
                         websitesCount.textContent = successfulInspections;
                     }
 
+                    // Add local history item immediately for responsiveness
                     addHistoryItem(
                         data.title || parsedUrl.href,
                         data.url || parsedUrl.href,
@@ -1057,8 +1719,24 @@
                     submitButton.disabled = false;
                     submitButton.textContent = 'Start Inspection →';
 
-                    // Detection runs asynchronously. Its failure does not fail the inspection.
-                    await detectIssues(parsedUrl.href, selectedViewport);
+                    // Run issue detection (async — failure does not fail the inspection)
+                    const issueResult = await detectIssues(parsedUrl.href, selectedViewport);
+
+                    // Save inspection audit record (async — failure does not crash the dashboard)
+                    const detectedIssues = issueResult && Array.isArray(issueResult.issues)
+                        ? issueResult.issues
+                        : [];
+
+                    saveAuditRecord({
+                        event_type: 'inspection',
+                        url: parsedUrl.href,
+                        viewport: selectedViewport,
+                        approval_state: 'not_applicable',
+                        detected_issues: detectedIssues,
+                        screenshots: data.screenshot_url
+                            ? { inspection: data.screenshot_url }
+                            : null
+                    });
 
                 } catch (error) {
                     clearTimeout(timeoutId);
@@ -1085,6 +1763,10 @@
             });
         }
 
+        // --------------------------------------------------
+        // Demo site selector
+        // --------------------------------------------------
+
         if (demoSiteInput) {
             demoSiteInput.addEventListener('change', function () {
                 if (demoSiteInput.value === 'shophub') {
@@ -1096,6 +1778,10 @@
                 }
             });
         }
+
+        // --------------------------------------------------
+        // Backend health check
+        // --------------------------------------------------
 
         const topbarStatus = document.getElementById('topbarStatus');
         async function checkBackendHealth() {
@@ -1117,113 +1803,202 @@
         checkBackendHealth();
         setInterval(checkBackendHealth, 10000);
 
-        function formatApiError(errorObj, fallback = 'Operation failed.') {
-            if (!errorObj) return fallback;
-            if (typeof errorObj === 'string') return errorObj;
+        // --------------------------------------------------
+        // Human-in-the-Loop Repair — Feature 3
+        // --------------------------------------------------
 
-            // FastAPI validation errors: { detail: [{ loc: [...], msg: "..." }] }
-            if (errorObj.detail) {
-                if (typeof errorObj.detail === 'string') {
-                    return errorObj.detail;
-                }
-                if (Array.isArray(errorObj.detail)) {
-                    return errorObj.detail
-                        .map(item => {
-                            if (typeof item === 'string') return item;
-                            if (item && item.msg) {
-                                const loc = Array.isArray(item.loc)
-                                    ? item.loc.filter(x => x !== 'body').join('.')
-                                    : '';
-                                return loc ? `${loc}: ${item.msg}` : item.msg;
-                            }
-                            return JSON.stringify(item);
-                        })
-                        .join('; ');
-                }
-                if (typeof errorObj.detail === 'object') {
-                    return JSON.stringify(errorObj.detail);
-                }
-            }
+        // State shared between showRepairReview() and executeRepair()
+        let _pendingRepairUrl = null;
+        let _pendingRepairViewport = null;
+        let _pendingRepairIssues = null;
 
-            if (typeof errorObj.message === 'string' && errorObj.message) {
-                return errorObj.message;
-            }
+        /**
+         * Step 1: Show the pre-repair review panel.
+         * Does NOT execute repair until user explicitly approves.
+         */
+        async function showRepairReview() {
+            const repairButton = document.getElementById('repairButton');
+            const reviewPanel = document.getElementById('repairReviewPanel');
+            const reviewSummary = document.getElementById('repairReviewSummary');
+            const reviewDetails = document.getElementById('repairReviewDetails');
+            const repairStatus = document.getElementById('repairStatus');
+            const verificationContainer = document.getElementById('repairVerificationResults');
 
-            try {
-                return JSON.stringify(errorObj);
-            } catch {
-                return fallback;
-            }
-        }
-
-        function extractFilename(urlOrPath) {
-            if (!urlOrPath || typeof urlOrPath !== 'string') return '';
-            const clean = urlOrPath.split('?')[0].split('#')[0];
-            const parts = clean.replace(/\\/g, '/').split('/');
-            return parts.pop() || '';
-        }
-
-        async function repairDashboardUI() {
-            const button = document.getElementById("repairButton");
-            const status = document.getElementById("repairStatus");
-            const urlInput = document.getElementById("websiteUrl");
-            const beforeImage = document.getElementById("beforeRepairImage");
-            const afterImage = document.getElementById("afterRepairImage");
-            const diffImage = document.getElementById("diffRepairImage");
-            const diffPercentage = document.getElementById("diffPercentage");
-            const beforePlaceholder = document.getElementById("beforeRepairPlaceholder");
-            const afterPlaceholder = document.getElementById("afterRepairPlaceholder");
-            const diffPlaceholder = document.getElementById("diffRepairPlaceholder");
-
-            let websiteUrl = urlInput ? urlInput.value.trim() : "";
+            let websiteUrl = urlInput ? urlInput.value.trim() : '';
 
             if (!websiteUrl) {
-                if (status) {
-                    status.textContent = "Please enter a website URL first.";
-                    status.style.color = "var(--red)";
+                if (repairStatus) {
+                    repairStatus.textContent = 'Please enter a website URL first.';
+                    repairStatus.style.color = 'var(--red)';
                 }
-                showNotice("Please enter a website URL to repair.", true);
+                showNotice('Please enter a website URL to repair.', true);
                 return;
             }
 
             // Ensure URL has a valid protocol
             if (!/^https?:\/\//i.test(websiteUrl)) {
-                if (websiteUrl.startsWith("127.0.0.1") || websiteUrl.startsWith("localhost")) {
-                    websiteUrl = "http://" + websiteUrl;
+                if (websiteUrl.startsWith('127.0.0.1') || websiteUrl.startsWith('localhost')) {
+                    websiteUrl = 'http://' + websiteUrl;
                     if (urlInput) urlInput.value = websiteUrl;
                 } else {
-                    const err = "Please enter a valid HTTP or HTTPS URL, e.g. http://127.0.0.1:8000/frontend/store.html";
-                    if (status) {
-                        status.textContent = err;
-                        status.style.color = "var(--red)";
+                    const err = 'Please enter a valid HTTP or HTTPS URL, e.g. http://127.0.0.1:8000/frontend/store.html';
+                    if (repairStatus) {
+                        repairStatus.textContent = err;
+                        repairStatus.style.color = 'var(--red)';
                     }
                     showNotice(err, true);
                     return;
                 }
             }
 
-            button.disabled = true;
-            document.body.dataset.inspecting = "true";
+            const repairViewport = (viewportInput && viewportInput.value) || '1366x768';
+            _pendingRepairUrl = websiteUrl;
+            _pendingRepairViewport = repairViewport;
+
+            // Gather current detected issues for the review summary
+            const priorityPanel = document.getElementById('issuesPriorityPanel');
+            const priorityItems = priorityPanel
+                ? priorityPanel.querySelectorAll('.priority-issue-card')
+                : [];
+            _pendingRepairIssues = Array.from(priorityItems).map(card => {
+                const title = card.querySelector('.priority-issue-title');
+                return title ? title.textContent : 'Issue detected';
+            });
+
+            // Populate review panel
+            if (reviewSummary) {
+                const issueCountText = _pendingRepairIssues.length > 0
+                    ? `${_pendingRepairIssues.length} issue${_pendingRepairIssues.length === 1 ? '' : 's'} detected`
+                    : 'Issues detected during last inspection';
+                reviewSummary.textContent =
+                    `Proposed fix: Temporary CSS will be injected into a Playwright browser session to fix button overflow. ${issueCountText}.`;
+            }
+
+            if (reviewDetails) {
+                reviewDetails.innerHTML = '';
+                const details = [
+                    'Fix: Apply `max-width: 100%; white-space: normal; overflow-wrap: anywhere` to .buggy-button / .broken-button',
+                    'Scope: Session-only — no source files are written to disk',
+                    'Post-repair: Automatic verification checks will run',
+                    'Target: ' + websiteUrl,
+                    'Viewport: ' + repairViewport
+                ];
+                details.forEach(detail => {
+                    const li = document.createElement('li');
+                    li.textContent = detail;
+                    reviewDetails.appendChild(li);
+                });
+            }
+
+            // Show review panel, reset status
+            if (reviewPanel) reviewPanel.style.display = 'block';
+            if (repairStatus) {
+                repairStatus.textContent = 'Please review the proposed repair above, then approve or reject.';
+                repairStatus.style.color = 'var(--muted)';
+            }
+            if (verificationContainer) {
+                verificationContainer.innerHTML = '';
+            }
+
+            // Hide review panel after 60 seconds if no action taken
+            console.log('OmniSight: Repair review panel shown. Awaiting user approval or rejection.');
+        }
+
+        /**
+         * Step 2a: User rejected the repair.
+         */
+        async function rejectRepair() {
+            const reviewPanel = document.getElementById('repairReviewPanel');
+            const repairStatus = document.getElementById('repairStatus');
+            const approveBtn = document.getElementById('approveRepairBtn');
+            const rejectBtn = document.getElementById('rejectRepairBtn');
+
+            if (approveBtn) approveBtn.disabled = true;
+            if (rejectBtn) rejectBtn.disabled = true;
+
+            if (repairStatus) {
+                repairStatus.textContent = '✕ Repair rejected by user. No changes were made.';
+                repairStatus.style.color = 'var(--red)';
+            }
+
+            showNotice('Repair rejected. No CSS was applied and no files were modified.', false);
+
+            if (reviewPanel) reviewPanel.style.display = 'none';
+
+            // Record rejection in audit history
+            if (_pendingRepairUrl) {
+                await saveAuditRecord({
+                    event_type: 'repair',
+                    url: _pendingRepairUrl,
+                    viewport: _pendingRepairViewport || '1366x768',
+                    approval_state: 'rejected',
+                    detected_issues: [],
+                    repair_result: { status: 'rejected', message: 'Repair rejected by user.' },
+                    verification: null
+                });
+            }
+
+            if (approveBtn) approveBtn.disabled = false;
+            if (rejectBtn) rejectBtn.disabled = false;
+
+            _pendingRepairUrl = null;
+            _pendingRepairViewport = null;
+            _pendingRepairIssues = null;
+        }
+
+        /**
+         * Step 2b: User approved the repair — execute it.
+         */
+        async function executeRepair() {
+            const reviewPanel = document.getElementById('repairReviewPanel');
+            const repairButton = document.getElementById('repairButton');
+            const repairStatus = document.getElementById('repairStatus');
+            const verificationContainer = document.getElementById('repairVerificationResults');
+            const beforeImage = document.getElementById('beforeRepairImage');
+            const afterImage = document.getElementById('afterRepairImage');
+            const diffImage = document.getElementById('diffRepairImage');
+            const diffPercentage = document.getElementById('diffPercentage');
+            const beforePlaceholder = document.getElementById('beforeRepairPlaceholder');
+            const afterPlaceholder = document.getElementById('afterRepairPlaceholder');
+            const diffPlaceholder = document.getElementById('diffRepairPlaceholder');
+            const approveBtn = document.getElementById('approveRepairBtn');
+            const rejectBtn = document.getElementById('rejectRepairBtn');
+
+            const websiteUrl = _pendingRepairUrl;
+            const repairViewport = _pendingRepairViewport || '1366x768';
+
+            if (!websiteUrl) {
+                showNotice('No pending repair found. Please click "Review & Repair UI →" first.', true);
+                return;
+            }
+
+            if (approveBtn) approveBtn.disabled = true;
+            if (rejectBtn) rejectBtn.disabled = true;
+            if (repairButton) repairButton.disabled = true;
+            document.body.dataset.inspecting = 'true';
+
+            if (reviewPanel) reviewPanel.style.display = 'none';
+
+            if (repairStatus) {
+                repairStatus.textContent = 'Repair approved. Processing...';
+                repairStatus.style.color = 'var(--muted)';
+            }
 
             try {
-                // Step 1: Ensure we have a valid baseline Before image matching the repair viewport (1366x768)
-                // Phase 3: use /capture-baseline endpoint so the viewport is explicit and labelled
-                const repairViewport = (viewportInput && viewportInput.value) || "1366x768";
+                // Step A: Ensure a valid Before baseline at the repair viewport
                 const hasValidBefore = beforeImage &&
                     beforeImage.src &&
-                    !beforeImage.src.includes("before.png") &&
+                    !beforeImage.src.includes('before.png') &&
                     beforeImage.dataset.viewport === repairViewport;
 
                 if (!hasValidBefore) {
-                    if (status) {
-                        status.textContent = "Capturing baseline screenshot before repair...";
-                        status.style.color = "var(--muted)";
+                    if (repairStatus) {
+                        repairStatus.textContent = 'Capturing baseline screenshot before repair...';
+                        repairStatus.style.color = 'var(--muted)';
                     }
-                    // Phase 3: use /capture-baseline instead of /inspect-browser
-                    // so the viewport is always consistent with the repair viewport.
-                    const baselineRes = await fetch(API_BASE + "/capture-baseline", {
-                        method: "POST",
-                        headers: { "Content-Type": "application/json" },
+                    const baselineRes = await fetch(API_BASE + '/capture-baseline', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({
                             url: websiteUrl,
                             viewport: repairViewport
@@ -1237,36 +2012,35 @@
                         baselineData = {};
                     }
 
-                    if (!baselineRes.ok || baselineData.status !== "success") {
-                        throw new Error(formatApiError(baselineData, "Could not capture baseline screenshot."));
+                    if (!baselineRes.ok || baselineData.status !== 'success') {
+                        throw new Error(formatApiError(baselineData, 'Could not capture baseline screenshot.'));
                     }
 
                     if (baselineData.screenshot_url && beforeImage) {
-                        beforeImage.src = new URL(baselineData.screenshot_url, API_BASE).href + "?t=" + Date.now();
-                        // Phase 3: store the viewport_key from the response
+                        beforeImage.src = new URL(baselineData.screenshot_url, API_BASE).href + '?t=' + Date.now();
                         beforeImage.dataset.viewport = baselineData.viewport_key || repairViewport;
                     }
                 }
 
                 if (beforeImage) {
-                    beforeImage.style.display = "block";
-                    if (beforePlaceholder) beforePlaceholder.style.display = "none";
+                    beforeImage.style.display = 'block';
+                    if (beforePlaceholder) beforePlaceholder.style.display = 'none';
                 }
 
-                // Step 2: Apply the approved temporary CSS repair in browser session
-                if (status) {
-                    status.textContent = "Applying approved temporary CSS repair in Playwright browser...";
-                    status.style.color = "var(--muted)";
+                // Step B: Apply the approved temporary CSS repair
+                if (repairStatus) {
+                    repairStatus.textContent = 'Applying approved temporary CSS repair in Playwright browser...';
+                    repairStatus.style.color = 'var(--muted)';
                 }
 
-                const repairRes = await fetch(API_BASE + "/repair-ui", {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
+                const repairRes = await fetch(API_BASE + '/repair-ui', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
-    url: websiteUrl,
-    approved: true,
-    viewport: repairViewport
-})
+                        url: websiteUrl,
+                        approved: true,
+                        viewport: repairViewport
+                    })
                 });
 
                 let repairData = {};
@@ -1277,65 +2051,62 @@
                 }
 
                 if (!repairRes.ok) {
-                    throw new Error(formatApiError(repairData, "Repair request failed with HTTP " + repairRes.status));
+                    throw new Error(formatApiError(repairData, 'Repair request failed with HTTP ' + repairRes.status));
                 }
 
-                // Step 2.1: Display automatic post-repair verification
-                const verificationContainer = document.getElementById("repairVerificationResults");
-
+                // Step C: Display post-repair verification
                 if (verificationContainer) {
                     const verification = repairData.verification;
 
                     if (verification && Array.isArray(verification.checks)) {
-                        const heading = document.createElement("strong");
+                        const heading = document.createElement('strong');
                         heading.textContent =
-                            `Post-Repair Verification: ${verification.status.replaceAll("_", " ").toUpperCase()} ` +
+                            `Post-Repair Verification: ${verification.status.replaceAll('_', ' ').toUpperCase()} ` +
                             `(${verification.passed_count}/${verification.total_checks} passed)`;
 
-                        const resultsList = document.createElement("ul");
-                        resultsList.style.paddingLeft = "20px";
-                        resultsList.style.marginTop = "8px";
+                        const resultsList = document.createElement('ul');
+                        resultsList.style.paddingLeft = '20px';
+                        resultsList.style.marginTop = '8px';
 
                         verification.checks.forEach(check => {
-                            const item = document.createElement("li");
+                            const item = document.createElement('li');
                             item.textContent =
-                                `[${check.passed ? "PASS" : "FAIL"}] ${check.name.replaceAll("_", " ")} - ${check.detail}`;
-                            item.style.color = check.passed ? "var(--green)" : "var(--red)";
+                                `[${check.passed ? 'PASS' : 'FAIL'}] ${check.name.replaceAll('_', ' ')} - ${check.detail}`;
+                            item.style.color = check.passed ? 'var(--green)' : 'var(--red)';
                             resultsList.appendChild(item);
                         });
 
                         verificationContainer.replaceChildren(heading, resultsList);
                         verificationContainer.style.color =
-                            verification.status === "resolved" ? "var(--green)" : "var(--red)";
+                            verification.status === 'resolved' ? 'var(--green)' : 'var(--red)';
                     } else {
                         verificationContainer.textContent =
-                            "Post-repair verification data is unavailable.";
-                        verificationContainer.style.color = "var(--muted)";
+                            'Post-repair verification data is unavailable.';
+                        verificationContainer.style.color = 'var(--muted)';
                     }
                 }
 
-                // Step 3: Update After Repair screenshot
+                // Step D: Update After Repair screenshot
                 if (repairData.screenshot_url && afterImage) {
-                    afterImage.src = new URL(repairData.screenshot_url, API_BASE).href + "?t=" + Date.now();
-                    afterImage.style.display = "block";
-                    if (afterPlaceholder) afterPlaceholder.style.display = "none";
+                    afterImage.src = new URL(repairData.screenshot_url, API_BASE).href + '?t=' + Date.now();
+                    afterImage.style.display = 'block';
+                    if (afterPlaceholder) afterPlaceholder.style.display = 'none';
                 }
 
-                // Step 4: Perform pixel-level comparison
-                const origFilename = extractFilename(beforeImage ? beforeImage.src : "");
-                const repairedFilename = extractFilename(repairData.screenshot_url || (afterImage ? afterImage.src : ""));
+                // Step E: Pixel-level comparison
+                const origFilename = extractFilename(beforeImage ? beforeImage.src : '');
+                const repairedFilename = extractFilename(repairData.screenshot_url || (afterImage ? afterImage.src : ''));
 
                 if (origFilename && repairedFilename) {
                     try {
-                        if (status) {
-                            status.textContent = "Comparing before and after screenshots...";
+                        if (repairStatus) {
+                            repairStatus.textContent = 'Comparing before and after screenshots...';
                         }
-                        // Phase 3: pass viewport keys so backend can detect cross-viewport mismatch
                         const origViewportKey = beforeImage ? (beforeImage.dataset.viewport || null) : null;
                         const repairedViewportKey = repairData.viewport_key || null;
-                        const compareRes = await fetch(API_BASE + "/compare-screenshots", {
-                            method: "POST",
-                            headers: { "Content-Type": "application/json" },
+                        const compareRes = await fetch(API_BASE + '/compare-screenshots', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify({
                                 original: origFilename,
                                 repaired: repairedFilename,
@@ -1346,83 +2117,128 @@
 
                         const compareData = await compareRes.json();
                         if (!compareRes.ok) {
-                            throw new Error(formatApiError(compareData, "Comparison request failed with HTTP " + compareRes.status));
+                            throw new Error(formatApiError(compareData, 'Comparison request failed with HTTP ' + compareRes.status));
                         }
 
                         if (diffImage && compareData.diff_url) {
-                            diffImage.src = new URL(compareData.diff_url, API_BASE).href + "?t=" + Date.now();
-                            diffImage.style.display = "block";
-                            if (diffPlaceholder) diffPlaceholder.style.display = "none";
+                            diffImage.src = new URL(compareData.diff_url, API_BASE).href + '?t=' + Date.now();
+                            diffImage.style.display = 'block';
+                            if (diffPlaceholder) diffPlaceholder.style.display = 'none';
                         }
 
                         if (diffPercentage && compareData.difference_percent !== undefined) {
                             diffPercentage.textContent = `${compareData.difference_percent}% difference`;
-                            diffPercentage.style.display = "block";
-                            diffPercentage.style.color = "var(--ink)";
+                            diffPercentage.style.display = 'block';
+                            diffPercentage.style.color = 'var(--ink)';
                         }
                     } catch (compareError) {
-                        console.error("OmniSight screenshot comparison error:", compareError);
+                        console.error('OmniSight screenshot comparison error:', compareError);
                         if (diffPlaceholder) {
-                            diffPlaceholder.textContent = "Comparison unavailable: " + compareError.message;
-                            diffPlaceholder.style.display = "block";
+                            diffPlaceholder.textContent = 'Comparison unavailable: ' + compareError.message;
+                            diffPlaceholder.style.display = 'block';
                         }
                         if (diffPercentage) {
-                            diffPercentage.textContent = "Error: " + compareError.message;
-                            diffPercentage.style.display = "block";
-                            diffPercentage.style.color = "var(--red)";
+                            diffPercentage.textContent = 'Error: ' + compareError.message;
+                            diffPercentage.style.display = 'block';
+                            diffPercentage.style.color = 'var(--red)';
                         }
                     }
                 }
 
-                if (repairData.status === "success") {
+                // Step F: Update session counters and status
+                if (repairData.status === 'success') {
                     successfulRepairs++;
-                    const repairsCount = document.getElementById("repairsCount");
-                    if (repairsCount) repairsCount.textContent = successfulRepairs;
+                    const repairsCountEl = document.getElementById('repairsCount');
+                    if (repairsCountEl) repairsCountEl.textContent = successfulRepairs;
 
-                    const msg = (repairData.message || "Repair applied successfully.") +
-                        " (Note: Temporary session repair; target website files were not modified.)";
+                    const msg = (repairData.message || 'Repair applied successfully.') +
+                        ' (Note: Temporary session repair; target website files were not modified.)';
 
-                    if (status) {
-                        status.textContent = "✓ " + msg;
-                        status.style.color = "var(--green)";
+                    if (repairStatus) {
+                        repairStatus.textContent = '✓ ' + msg;
+                        repairStatus.style.color = 'var(--green)';
                     }
-                    showNotice("Repair successful! " + (repairData.message || ""));
+                    showNotice('Repair successful! ' + (repairData.message || ''));
                 } else {
-                    // e.g. status: "not_applied"
-                    const msg = repairData.message || "No repairable button found on target page.";
-                    if (status) {
-                        status.textContent = "ℹ " + msg;
-                        status.style.color = "var(--muted)";
+                    const msg = repairData.message || 'No repairable button found on target page.';
+                    if (repairStatus) {
+                        repairStatus.textContent = 'ℹ ' + msg;
+                        repairStatus.style.color = 'var(--muted)';
                     }
-                    showNotice("Repair status: " + msg, false);
+                    showNotice('Repair status: ' + msg, false);
                 }
 
-            } catch (error) {
-                console.error("OmniSight repair error:", error);
+                // Step G: Save repair audit record
+                await saveAuditRecord({
+                    event_type: 'repair',
+                    url: websiteUrl,
+                    viewport: repairViewport,
+                    approval_state: 'approved',
+                    detected_issues: _pendingRepairIssues
+                        ? _pendingRepairIssues.map(t => ({ description: t }))
+                        : [],
+                    repair_result: {
+                        status: repairData.status,
+                        message: repairData.message || ''
+                    },
+                    verification: repairData.verification || null,
+                    screenshots: {
+                        before: beforeImage ? extractFilename(beforeImage.src) : null,
+                        after: repairData.screenshot_url || null
+                    }
+                });
 
-                let errorMessage = "An unexpected error occurred.";
+            } catch (error) {
+                console.error('OmniSight repair error:', error);
+
+                let errorMessage = 'An unexpected error occurred.';
                 if (error instanceof TypeError) {
-                    errorMessage = "Cannot connect to OmniSight backend. Make sure FastAPI is running at " + API_BASE;
+                    errorMessage = 'Cannot connect to OmniSight backend. Make sure FastAPI is running at ' + API_BASE;
                 } else if (error instanceof Error) {
                     errorMessage = error.message;
                 } else {
                     errorMessage = formatApiError(error);
                 }
 
-                if (status) {
-                    status.textContent = "Repair failed: " + errorMessage;
-                    status.style.color = "var(--red)";
+                if (repairStatus) {
+                    repairStatus.textContent = 'Repair failed: ' + errorMessage;
+                    repairStatus.style.color = 'var(--red)';
                 }
-                showNotice("Repair failed: " + errorMessage, true);
+                showNotice('Repair failed: ' + errorMessage, true);
+
+                // Record failed repair in audit history
+                if (_pendingRepairUrl) {
+                    await saveAuditRecord({
+                        event_type: 'repair',
+                        url: _pendingRepairUrl,
+                        viewport: _pendingRepairViewport || '1366x768',
+                        approval_state: 'approved',
+                        detected_issues: [],
+                        repair_result: { status: 'error', message: errorMessage },
+                        verification: null
+                    });
+                }
 
             } finally {
-                document.body.dataset.inspecting = "false";
-                button.disabled = false;
+                document.body.dataset.inspecting = 'false';
+                if (repairButton) repairButton.disabled = false;
+                if (approveBtn) approveBtn.disabled = false;
+                if (rejectBtn) rejectBtn.disabled = false;
+                _pendingRepairUrl = null;
+                _pendingRepairViewport = null;
+                _pendingRepairIssues = null;
             }
         }
 
-        document.getElementById("repairButton")
-            ?.addEventListener("click", repairDashboardUI);
+        // Wire up repair buttons
+        document.getElementById('repairButton')
+            ?.addEventListener('click', showRepairReview);
+
+        document.getElementById('approveRepairBtn')
+            ?.addEventListener('click', executeRepair);
+
+        document.getElementById('rejectRepairBtn')
+            ?.addEventListener('click', rejectRepair);
 
         // --------------------------------------------------
         // Gemini Vision Audit
@@ -1550,8 +2366,15 @@
         document.getElementById('visionAuditButton')
             ?.addEventListener('click', runVisionAudit);
 
+        // --------------------------------------------------
+        // Initialisation
+        // --------------------------------------------------
+
         console.log('OmniSight dashboard JavaScript loaded.');
         if (urlInput && !urlInput.value.trim()) urlInput.value = 'https://example.com';
+
+        // Load persistent audit history on page open
+        loadAuditHistory();
     </script>
 </body>
 

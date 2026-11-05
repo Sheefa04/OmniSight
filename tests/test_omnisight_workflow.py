@@ -215,8 +215,14 @@ def test_responsive_viewports_and_workflow():
         dashboard_page.screenshot(path=str(ev_inspection))
         print(f"[OK] Saved issue detection evidence: {ev_inspection.name}")
         
-        # Trigger Approved Repair
+        # Trigger Human-in-the-Loop Repair Approval
         dashboard_page.locator("#repairButton").click()
+
+        # Wait for the review panel before explicitly approving
+        dashboard_page.locator("#repairReviewPanel").wait_for(state="visible", timeout=10000)
+        dashboard_page.locator("#approveRepairBtn").click()
+
+        # Wait for the approved temporary CSS repair
         dashboard_page.wait_for_function(
             "() => document.getElementById('repairStatus').textContent.includes('Temporary CSS repair applied')",
             timeout=35000

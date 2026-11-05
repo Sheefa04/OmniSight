@@ -6,6 +6,7 @@ import re
 from pathlib import Path
 from urllib.parse import urlparse
 from uuid import uuid4
+from datetime import datetime, timezone
 
 from dotenv import load_dotenv
 from google import genai
@@ -40,7 +41,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
-from pydantic import BaseModel, HttpUrl
+from pydantic import BaseModel, HttpUrl, Field
 from playwright.async_api import (
     async_playwright,
     TimeoutError as PlaywrightTimeoutError,
@@ -59,6 +60,10 @@ from .repair_sandbox import evaluate_css_candidate
 BASE_DIR = Path(__file__).resolve().parent
 SCREENSHOT_DIR = BASE_DIR / "screenshots"
 SCREENSHOT_DIR.mkdir(parents=True, exist_ok=True)
+AUDIT_DATA_DIR = BASE_DIR / "data"
+AUDIT_DATA_DIR.mkdir(parents=True, exist_ok=True)
+
+AUDIT_HISTORY_FILE = AUDIT_DATA_DIR / "audit_history.json"
 
 FRONTEND_DIR = BASE_DIR.parent / "frontend"
 
@@ -122,9 +127,19 @@ class CompareScreenshotsRequest(BaseModel):
     original_viewport: str | None = None
     repaired_viewport: str | None = None
 
-
 class VisionAuditRequest(BaseModel):
     screenshot_filename: str
+
+class AuditHistoryRequest(BaseModel):
+    event_type: str
+    url: HttpUrl
+    viewport: str = "1366x768"
+    approval_state: str = "not_applicable"
+    detected_issues: list[dict] = Field(default_factory=list)
+    repair_result: dict | None = None
+    verification: dict | None = None
+    screenshots: dict | None = None
+
 # --------------------------------------------------
 # Helpers
 # --------------------------------------------------
@@ -139,7 +154,44 @@ def validate_http_url(url: str) -> str:
         )
 
     return url
+def read_audit_history() -> list:
+    if not AUDIT_HISTORY_FILE.exists():
+        return []
 
+    try:
+        with AUDIT_HISTORY_FILE.open("r", encoding="utf-8") as file:
+            records = json.load(file)
+
+        if not isinstance(records, list):
+            logger.error("Audit history must contain a JSON list.")
+            return []
+
+        return records
+
+    except (json.JSONDecodeError, OSError) as exc:
+        logger.error("Could not read audit history: %s", exc)
+        return []
+
+
+def write_audit_history(records: list) -> None:
+    temporary_file = AUDIT_HISTORY_FILE.with_suffix(".tmp")
+
+    try:
+        with temporary_file.open("w", encoding="utf-8") as file:
+            json.dump(records, file, indent=2, ensure_ascii=False)
+
+        temporary_file.replace(AUDIT_HISTORY_FILE)
+
+    except OSError as exc:
+        logger.error("Could not save audit history: %s", exc)
+
+        if temporary_file.exists():
+            temporary_file.unlink(missing_ok=True)
+
+        raise HTTPException(
+            status_code=500,
+            detail="Unable to save audit history.",
+        )
 
 SUPPORTED_VIEWPORTS = {
     "1366x768": {
@@ -320,6 +372,66 @@ async def get_viewports():
         ],
     }
 
+# --------------------------------------------------
+# Audit History
+# --------------------------------------------------
+
+@app.get("/audit-history")
+async def get_audit_history():
+    records = read_audit_history()
+
+    return {
+        "status": "success",
+        "total_records": len(records),
+        "records": records,
+    }
+
+
+@app.post("/audit-history")
+async def create_audit_record(request: AuditHistoryRequest):
+    event_type = request.event_type.strip().lower()
+
+    if event_type not in {"inspection", "repair"}:
+        raise HTTPException(
+            status_code=400,
+            detail="Event type must be inspection or repair.",
+        )
+
+    if request.approval_state not in {
+        "not_applicable",
+        "approved",
+        "rejected",
+        "not_confirmed",
+    }:
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid approval state.",
+        )
+
+    url = validate_http_url(str(request.url))
+    parse_viewport(request.viewport)
+
+    record = {
+        "id": str(uuid4()),
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        **request.model_dump(mode="json"),
+        "event_type": event_type,
+        "url": url,
+    }
+
+    records = read_audit_history()
+    records.insert(0, record)
+
+    # Keep the most recent 500 records.
+    records = records[:500]
+
+    write_audit_history(records)
+
+    return {
+        "status": "success",
+        "message": "Audit record saved successfully.",
+        "record": record,
+    }
 
 # --------------------------------------------------
 # Website inspection
