@@ -1,130 +1,154 @@
 # OmniSight: Multimodal UI Self-Healing & RPA Agent
 
-> **Autonomous Website UI Inspection, Heuristic Issue Detection, and Human-Approved Browser Self-Healing Prototype**
+> **Automated Website UI Inspection, Rule-Based Issue Detection, Gemini Vision Analysis, and Human-Approved Browser Self-Healing Prototype**
 
 ---
 
 ## 1. Project Overview
 
-**OmniSight** is an automated web quality assurance and UI self-healing demonstration platform. It bridges the gap between layout defect discovery and immediate remediation by combining headless browser automation with interactive human oversight.
+**OmniSight** is a web quality assurance and UI self-healing prototype designed to identify responsive website layout defects, explain detected issues, and apply human-approved temporary repairs.
 
-Unlike traditional testing suites that merely log failures in reports, OmniSight enables automated visual inspection across responsive viewports, analyzes DOM and computed style heuristics to detect visual flaws (such as oversized or unwrapped buttons and horizontal overflow), and applies non-destructive, temporary CSS repairs inside a real browser session—with dynamic before-and-after visual evidence.
+It combines FastAPI, Playwright browser automation, DOM and computed-style analysis, optional Gemini Vision screenshot analysis, and an interactive dashboard.
 
----
+The system follows a controlled workflow:
+
+**Website URL → Inspection → Issue Detection → Prioritization → Human Review → Approved Repair → Verification → Visual Comparison → Audit History**
+
+OmniSight uses a local ShopHub demonstration store containing intentional responsive UI defects. It can also inspect reachable HTTP/HTTPS websites.
+
+Repairs are injected into a Playwright browser session and do not permanently modify the target website's source files.
 
 ## 2. Problem Statement
 
-Modern responsive websites frequently suffer from visual regressions, overflow defects, broken styling, and viewport-specific rendering anomalies:
-- **Delayed Remediation**: Visual defects often remain live until users file bug tickets or QA teams manually inspect each breakpoint.
-- **Unwrapped & Overflowing Components**: On mobile viewports, components with fixed widths or rigid white-space rules overflow cards and disrupt usability.
-- **Lack of Immediate Proof**: Developers and stakeholders require tangible visual comparisons (Before vs. After) before approving code changes.
-- **Safety Concerns**: Autonomous repair agents must never alter production codebase files without human approval and visual validation.
+Responsive websites can suffer from visual defects such as overflowing buttons, clipped text, overlapping elements, and horizontal scrolling.
 
-OmniSight solves this with an approved-repair loop: **Inspect -> Detect -> Review -> Approve & Repair -> Compare**.
+Common challenges include:
 
----
+- **Delayed defect detection:** Visual issues may remain unnoticed until manual QA or user reports.
+- **Responsive layout failures:** Fixed widths and rigid CSS rules can break mobile and tablet layouts.
+- **Limited visual evidence:** Developers need before-and-after evidence to understand whether a repair improved the interface.
+- **Unsafe automatic modifications:** Repair systems should not modify website source files without explicit human authorization.
+- **Insufficient traceability:** Inspection, approval, rejection, and repair outcomes should be recorded for review.
+
+OmniSight addresses these challenges through browser-based inspection, issue analysis, controlled repair, post-repair verification, and an audit trail.
 
 ## 3. Key Objectives
 
-1. **Automated Inspection**: Open any HTTP/HTTPS website using headless Chromium and capture timestamped full-page screenshots.
-2. **Deterministic UI Issue Detection**: Use DOM evaluation and computed CSS styles to detect layout defects (such as button overflow and horizontal document spill).
-3. **Human-in-the-Loop Safety**: Enforce an explicit approval gate (`approved=true`) before any repair action is dispatched.
-4. **Temporary Session-Level Repair**: Inject safe, scoped CSS repairs within an active Playwright browser session without modifying the target site's source files.
-5. **Dynamic Visual Comparison**: Provide side-by-side Before/After screenshot evidence with real-time feedback.
+1. Inspect reachable HTTP/HTTPS websites using Playwright and Chromium.
+2. Capture screenshots across desktop, tablet, and mobile viewports.
+3. Detect layout defects using DOM measurements and computed CSS properties.
+4. Prioritize detected issues using a transparent rule-based classifier.
+5. Provide optional Gemini Vision screenshot analysis.
+6. Require explicit human approval before applying repairs.
+7. Inject temporary, scoped CSS within a browser session.
+8. Verify repaired UI conditions and compare before-and-after screenshots.
+9. Maintain inspection, approval, rejection, and repair history.
 
----
+## 4. Current Implementation Status
 
-## 4. Current Implementation vs. Planned Scope
-
-| Feature | Current Status | Description |
-| :--- | :---: | :--- |
-| **FastAPI Backend Service** | Implemented | Asynchronous REST API running on Python 3.12 & Uvicorn. |
-| **Playwright Automation** | Implemented | Headless Chromium controller for website navigation and screenshots. |
-| **DOM Issue Detection** | Implemented | Detects oversized buttons, horizontal viewport overflow, and buggy elements. |
-| **ShopHub Demo Store** | Implemented | Local responsive e-commerce demo (`frontend/store.html`) with intentional layout defects. |
-| **Approved Repair Flow** | Implemented | `/repair-ui` applies scoped CSS repair in Chromium when `approved=true`. |
-| **Dynamic Before/After UI** | Implemented | Dashboard dynamically updates Before & After images with cache-busting timestamps. |
-| **Multi-Viewport Testing** | Implemented | Desktop (1366x768), Tablet (768x1024), and Mobile (375x812 / 390x844). |
-| **Multimodal Vision LLM** | Planned (Post Mid-Review) | Integration with Vision models for qualitative visual reasoning. |
-| **Automated PR Generation** | Planned (Future) | Automatic Git commit and patch generator for source repositories. |
-
----
+| Feature | Status | Description |
+|---|---|---|
+| FastAPI backend | Implemented | REST API using Python 3.12 |
+| Playwright automation | Implemented | Chromium navigation and screenshot capture |
+| DOM issue detection | Implemented | Layout and computed-style heuristics |
+| ShopHub demo store | Implemented | Responsive store with intentional UI defects |
+| Human approval workflow | Implemented | Explicit approve/reject review panel |
+| Temporary CSS repair | Implemented | Session-scoped browser CSS injection |
+| Smart issue prioritization | Implemented | Rule-based critical/high/medium/low classification |
+| Gemini Vision integration | Implemented | Optional screenshot-based visual analysis |
+| Post-repair verification | Implemented | Four browser-based verification checks |
+| Screenshot comparison | Implemented | Before-and-after visual difference analysis |
+| Repair history and audit trail | Implemented | Persistent JSON audit records |
+| CSS candidate sandbox | Backend implemented | Isolated CSS evaluation endpoint; dashboard integration not verified |
+| Automated Git patch/PR generation | Future scope | Not currently implemented |
+| Runtime downloadable audit report | Future scope | Not currently verified as a dashboard feature |
 
 ## 5. System Architecture
 
-The following diagram represents the actual implemented architecture:
-
 ```mermaid
 flowchart TD
-    subgraph Client["Frontend Dashboard (Browser)"]
-        UI["dashboard.html"]
-        Input["URL & Viewport Inputs"]
-        BeforeAfter["Dynamic Before/After View"]
-        Status["Live Status & Error Banner"]
-    end
+    U["User / Browser"]
+    D["OmniSight Dashboard"]
+    F["FastAPI Backend"]
+    P["Playwright + Chromium"]
+    H["DOM and CSS Heuristic Detection"]
+    G["Optional Gemini Vision Analysis"]
+    R["Human Approval / Rejection"]
+    C["Temporary Scoped CSS Repair"]
+    V["Post-Repair Verification"]
+    S["Screenshot Comparison"]
+    A["Audit History (JSON)"]
+    T["ShopHub / External Website"]
 
-    subgraph Server["FastAPI Backend (localhost:8000)"]
-        API["FastAPI App (backend/main.py)"]
-        H["GET /health"]
-        IB["POST /inspect-browser"]
-        DI["POST /detect-issues"]
-        RU["POST /repair-ui (requires approved=true)"]
-        Storage["Screenshot Storage (backend/screenshots/)"]
-    end
-
-    subgraph BrowserEngine["Playwright Automation"]
-        Chromium["Headless Chromium Engine"]
-        DOM["DOM & Computed Style Evaluator"]
-        CSSFix["Scoped CSS Injection Engine"]
-    end
-
-    subgraph Target["Target Website"]
-        ShopHub["ShopHub Demo (frontend/store.html)"]
-        ExtWeb["External Web Pages (HTTP/HTTPS)"]
-    end
-
-    Input -->|Inspect Request| IB
-    IB -->|Launch Context| Chromium
-    Chromium -->|Navigate & Screenshot| Target
-    Chromium -->|Save Screenshot| Storage
-    Storage -->|Serve Image URL| BeforeAfter
-
-    UI -->|Detect Issues| DI
-    DI -->|Run Heuristics| DOM
-    DOM -->|JSON Issue Report| UI
-
-    UI -->|Approve & Repair UI| RU
-    RU -->|Inject CSS| CSSFix
-    CSSFix -->|Capture Repaired State| Storage
-    Storage -->|Serve After Image| BeforeAfter
-    RU -->|Repair Confirmation| Status
+    U --> D
+    D --> F
+    F --> P
+    P --> T
+    P --> H
+    H --> D
+    P --> G
+    G --> D
+    D --> R
+    R -->|Approved| C
+    R -->|Rejected| A
+    C --> V
+    V --> S
+    S --> A
+    F --> A
+    A --> D
 ```
 
----
+### Main components
+
+- **Frontend:** Dashboard for URL input, viewport selection, issue review, approval, repair, and evidence display.
+- **Backend:** FastAPI endpoints for inspection, detection, repair, visual analysis, comparison, and audit history.
+- **Browser automation:** Playwright and Chromium perform website navigation, screenshot capture, CSS injection, and verification.
+- **Visual analysis:** Optional Gemini Vision integration analyzes screenshots independently of the rule-based DOM detector.
+- **Audit storage:** JSON records preserve inspection and repair events.
 
 ## 6. Technology Stack
 
-- **Backend**: Python 3.12, FastAPI, Uvicorn, Pydantic v2
-- **Browser Automation**: Playwright (Async Python API), Chromium
-- **Frontend**: Semantic HTML5, Vanilla CSS3 (Custom Design System, Glassmorphic Panels), Vanilla JavaScript (ES6+, Fetch API)
-- **Image Serving**: FastAPI StaticFiles directory mount (`/screenshots`)
-- **Testing**: Playwright Sync API, Python HTTP test suites
+| Layer | Technologies |
+|---|---|
+| Programming language | Python 3.12 |
+| Backend | FastAPI, Uvicorn |
+| Data validation | Pydantic v2 |
+| Browser automation | Playwright, Chromium |
+| Frontend | HTML5, CSS3, Vanilla JavaScript |
+| Visual AI | Google Gemini API through `google-genai` |
+| Image processing | Pillow |
+| Environment configuration | python-dotenv |
+| Automated testing | pytest |
+| Version control | Git and GitHub |
 
----
+### Verified development environment
+
+- Python: 3.12.10
+- FastAPI: 0.149.0
+- Uvicorn: 0.54.0
+- Pydantic: 2.14.1
+- Pillow: 13.0.0
+- Playwright: Installed in the project environment
 
 ## 7. Project Structure
 
 ```text
 OmniSight/
 ├── backend/
-│   ├── screenshots/              # Generated runtime inspection and repair screenshots
-│   ├── main.py                   # Complete FastAPI application & Playwright endpoints
-│   └── test-chromium.py          # Chromium launch smoke test
+│   ├── main.py
+│   ├── repair_sandbox.py
+│   ├── test-chromium.py
+│   ├── test_chromium.py
+│   ├── test_screenshot.png
+│   ├── screenshots/
+│   └── data/                 # Runtime audit data; Git-ignored
+│
 ├── frontend/
-│   ├── dashboard.html            # Main inspection, issue detection, and repair dashboard
-│   └── store.html                # ShopHub demo store with intentional layout defects
+│   ├── dashboard.html
+│   └── store.html
+│
 ├── screenshots/
-│   └── evidence/                 # Verified evaluation & mid-review evidence screenshots
+│   └── evidence/
 │       ├── 01_dashboard_initial.png
 │       ├── 02_desktop_store_1366x768.png
 │       ├── 03_mobile_store_375x812.png
@@ -132,127 +156,212 @@ OmniSight/
 │       ├── 04_tablet_store_768x1024.png
 │       ├── 05_dashboard_issues_detected.png
 │       └── 06_dashboard_repaired_comparison.png
+│
 ├── tests/
-│   ├── test_demo_store.py        # Playwright assertions for demo store elements & viewports
-│   └── test_omnisight_workflow.py# Complete end-to-end API, safety, and evidence test suite
-├── docs/                         # Mid-review documentation, report, and presentation
-├── .gitignore                    # Git ignore configurations (virtual envs, screenshots, caches)
-└── README.md                     # Project documentation
+│   ├── test_audit_history.py
+│   ├── test_compare_screenshots.py
+│   ├── test_demo_store.py
+│   ├── test_omnisight_workflow.py
+│   └── test_viewport_phase3.py
+│
+├── docs/
+│   ├── DAY_1_BASELINE_AUDIT.md
+│   ├── FINAL_IMPLEMENTATION_ROADMAP_2026.md
+│   ├── FINAL_PROJECT_REPORT.md
+│   ├── FINAL_PROJECT_REPORT.pdf
+│   ├── FINAL_REVIEW_AUDIT.md
+│   ├── GEMINI_VISION_AUDIT.md
+│   ├── MID_REVIEW_PRESENTATION.md
+│   ├── PROJECT_REPORT.md
+│   ├── SAFETY_AND_APPROVAL.md
+│   └── TEST_RESULTS.md
+│
+├── generate_final_report.py
+├── generate_report_docx.py
+├── README.md
+└── .gitignore
 ```
 
----
-
-## 8. Installation & Setup
+## 8. Installation and Setup
 
 ### Prerequisites
-- Python 3.10+ (Python 3.12 recommended)
-- Google Chrome or Chromium installed via Playwright
 
-### Step 1: Clone the Repository
-```bash
+- Python 3.12 recommended.
+- Git.
+- Internet connectivity for downloading packages and accessing external target websites.
+- Chromium installed through Playwright.
+- Optional Gemini API key for visual AI analysis.
+
+### Step 1: Clone the repository
+
+```powershell
 git clone https://github.com/Sheefa04/OmniSight.git
 cd OmniSight
 ```
 
-### Step 2: Create and Activate Virtual Environment
-```bash
-# Windows (PowerShell)
+### Step 2: Create and activate the virtual environment
+
+```powershell
 python -m venv backend/.venv312
 .\backend\.venv312\Scripts\Activate.ps1
 ```
 
-### Step 3: Install Dependencies
-```bash
-pip install fastapi uvicorn playwright pydantic
+### Step 3: Install dependencies
+
+```powershell
+python -m pip install fastapi uvicorn pydantic playwright Pillow python-dotenv google-genai pytest
+```
+
+### Step 4: Install Chromium
+
+```powershell
 playwright install chromium
 ```
 
----
+### Step 5: Configure Gemini Vision (Optional)
+
+Create `backend/.env` and configure the Gemini API key:
+
+```env
+GEMINI_API_KEY=your_gemini_api_key
+```
+
+Keep the `.env` file private. It is excluded from Git tracking. Do not commit or publish API keys.
+
+Without a configured API key, the Vision Audit endpoint cannot perform Gemini analysis and may return HTTP 503.
 
 ## 9. Running the Application
 
-### Start the FastAPI Backend
-```bash
-cd backend
-python main.py
+Run the following command from the **OmniSight project root**, not from inside the `backend` folder:
+
+```powershell
+python -m backend.main
 ```
-*The backend server will start at `http://127.0.0.1:8000`.*
 
-### Access the Application
-- **Interactive API Documentation (Swagger)**: `http://127.0.0.1:8000/docs`
-- **OmniSight Dashboard**: `http://127.0.0.1:8000/frontend/dashboard.html`
-- **ShopHub Demo Store**: `http://127.0.0.1:8000/frontend/store.html`
+The API server runs at:
 
----
+`http://127.0.0.1:8000`
 
-## 10. End-to-End Demo Procedure
+### Access the application
 
-1. Open `http://127.0.0.1:8000/frontend/dashboard.html` in your web browser.
-2. Under **Demo website**, select **ShopHub**. The Website URL automatically populates with `http://127.0.0.1:8000/frontend/store.html`.
-3. Choose your desired Viewport (e.g. **Mobile 375 × 812** or **Desktop 1366 × 768**).
-4. Click **Start Inspection →**.
-   - OmniSight launches Chromium, navigates to the target site, and captures a baseline screenshot.
-   - The DOM issue detection engine detects the unwrapped `oversized-button`.
-   - The **Before Repair** image loads in the comparison panel.
-5. Review the issue details and click **Approve & Repair UI**.
-   - OmniSight launches a Playwright session with the approved repair flag.
-   - Scoped CSS (`max-width: 100% !important; white-space: normal !important;`) is injected to fix button text wrapping and dimensions.
-   - The repaired screenshot is captured and rendered dynamically in the **After Repair** comparison panel.
-   - The dashboard updates the **Repairs Applied** counter.
+- **Dashboard:** http://127.0.0.1:8000/frontend/dashboard.html
+- **ShopHub Demo Store:** http://127.0.0.1:8000/frontend/store.html
+- **Swagger API Documentation:** http://127.0.0.1:8000/docs
+- **Health Check:** http://127.0.0.1:8000/health
 
----
+## 10. End-to-End Demonstration Workflow
+
+1. Start the backend from the project root.
+2. Open the OmniSight dashboard.
+3. Select ShopHub or enter a reachable website URL.
+4. Select a viewport, such as Desktop 1366 × 768 or Mobile 375 × 812.
+5. Click **Start Inspection**.
+6. Review the captured screenshot and detected issues.
+7. Examine issue priority and repair suggestions.
+8. Click **Review & Repair UI** to open the human review panel.
+9. Explicitly choose **Approve** or **Reject**.
+10. If rejected, no CSS repair is applied; the rejection is recorded in audit history.
+11. If approved, the backend applies temporary scoped CSS in the Playwright session.
+12. The system performs post-repair verification and captures the repaired screenshot.
+13. Review the before-and-after comparison and repair result.
+14. Inspect the recorded events in Repair History.
+
+### Post-repair verification
+
+The repair workflow checks:
+
+- `button_within_parent`
+- `button_text_fits`
+- `text_wrapping_enabled`
+- `page_horizontal_overflow`
+
+The repair result can be reported as `resolved`, `partially_resolved`, or `not_resolved`.
 
 ## 11. REST API Reference
 
-| Endpoint | Method | Request Payload | Description |
-| :--- | :---: | :--- | :--- |
-| `/health` | `GET` | *None* | Verifies backend connectivity and system health. |
-| `/inspect-browser` | `POST` | `{"url": "...", "viewport": "375x812"}` | Navigates to URL, captures full-page screenshot, and returns URL. |
-| `/detect-issues` | `POST` | `{"url": "...", "viewport": "375x812"}` | Evaluates DOM and returns detected UI anomalies. |
-| `/repair-ui` | `POST` | `{"url": "...", "approved": true}` | Injects safe temporary CSS fix and captures post-repair screenshot. |
-| `/test-browser` | `GET` | *None* | Diagnostic endpoint to verify Chromium launches. |
+| Endpoint | Method | Description |
+|---|---|---|
+| `/` | GET | Root application response |
+| `/dashboard` | GET | Dashboard route |
+| `/health` | GET | Backend health status |
+| `/viewports` | GET | Available viewport information |
+| `/audit-history` | GET | Retrieve audit history |
+| `/audit-history` | POST | Create an audit history record |
+| `/inspect` | POST | Website inspection |
+| `/inspect-browser` | POST | Browser-based inspection and screenshot capture |
+| `/capture-baseline` | POST | Capture baseline screenshot |
+| `/test-browser` | GET | Chromium launch diagnostic |
+| `/detect-issues` | POST | DOM-based issue detection |
+| `/vision-audit` | POST | Gemini Vision screenshot analysis |
+| `/sandbox-evaluate` | POST | Evaluate a candidate CSS repair in an isolated browser context |
+| `/repair-ui` | POST | Apply human-approved temporary CSS repair |
+| `/compare-screenshots` | POST | Compare original and repaired screenshots |
 
----
+### Important API safety behaviour
 
-## 12. Automated Testing & Verification
+- `/repair-ui` requires `approved=true`.
+- Requests without approval are rejected.
+- URL and viewport inputs are validated.
+- CSS candidate evaluation uses an isolated browser context.
+- Repair CSS is temporary and does not permanently modify target website source files.
 
-Run the comprehensive automated test suite:
-```bash
-.\backend\.venv312\Scripts\python.exe tests/test_omnisight_workflow.py
+## 12. Automated Testing and Verification
+
+Run the complete test suite from the project root with the virtual environment activated:
+
+```powershell
+python -m pytest -q
 ```
 
-### Verified Test Cases:
-1. `test_api_health`: Validates HTTP 200 and `"status": "healthy"`.
-2. `test_safety_approved_false`: Confirms that unapproved repairs are strictly rejected with HTTP 400.
-3. `test_safety_invalid_url`: Validates Pydantic HTTP URL rejection (HTTP 422).
-4. `test_safety_non_broken_page`: Confirms truthful reporting (`not_applied`) when target page has no defects.
-5. `test_responsive_viewports_and_workflow`:
-   - Desktop (1366x768)
-   - Mobile (375x812 & 390x844)
-   - Tablet (768x1024)
-   - Captures 7 high-resolution evidence screenshots to `screenshots/evidence/`.
+### Latest verified test result — 5 November 2026
 
----
+| Result | Count |
+|---|---:|
+| Tests passed | 74 |
+| Tests failed | 0 |
+| Warnings | 6 |
+| Execution time | 60.58 seconds |
 
-## 13. System Limitations & Transparency
+### Test coverage
 
-- **Session-Bound Repairs**: The CSS repairs are applied inside active Playwright browser sessions and recorded via screenshots. They do **not** modify or overwrite the original HTML/CSS files of the target website.
-- **Rule-Based Heuristic Detection**: Current issue detection relies on deterministic DOM and computed-style measurements (bounding client rects, scrollWidth vs. innerWidth) rather than deep generative vision models.
-- **Network Dependency**: Target websites must be reachable via standard HTTP/HTTPS protocols.
+The test suite includes:
 
----
+- API health and endpoint behaviour.
+- Approval and rejection safety.
+- Invalid URL handling.
+- ShopHub demo-store checks.
+- Responsive viewport testing.
+- Browser inspection and workflow verification.
+- Audit history persistence and validation.
+- Screenshot comparison and image handling.
 
-## 14. Future Scope (Post Mid-Review)
+### Warning transparency
 
-1. **Multimodal Vision-Language Model Integration**: Add vision models (e.g. Gemini Vision API) to identify semantic UI bugs (e.g., poor contrast, misaligned icons).
-2. **Automated Source Patch Generator**: Expand the agent to propose verified CSS patches as downloadable `.diff` files or GitHub pull requests.
-3. **Automated Post-Repair Retesting Agent**: Automatically re-run the heuristic detection engine against the repaired browser state to quantify improvement.
-4. **Downloadable Audit Reports**: Export comprehensive PDF/HTML audit reports containing detected issues, repair logs, and before/after comparisons.
+The latest test run reported six non-blocking warnings related to Pillow's deprecated `Image.Image.getdata()` usage in the image comparison implementation. The method is scheduled for removal in Pillow 14.
 
----
+## 13. System Limitations and Transparency
+
+- **Session-bound repairs:** CSS changes are injected into a Playwright browser session and do not permanently modify target website files.
+- **Rule-based DOM detection:** The primary issue prioritization and detection logic uses deterministic DOM and computed-style rules; it is not a generative AI detector.
+- **Optional visual AI:** Gemini Vision is a separate screenshot-analysis capability. API key configuration and external service availability are required.
+- **Historical AI verification:** A live Gemini Vision API test was recorded on 31 October 2026. Current API availability has not been reverified on 5 November 2026.
+- **Backend-only sandbox integration:** CSS candidate evaluation exists in the backend; integration with the dashboard has not been verified.
+- **Repair scope:** The current repair workflow focuses on supported button layout and overflow conditions, not every possible visual defect.
+- **Network dependency:** External target websites must be reachable through HTTP/HTTPS.
+
+## 14. Future Scope
+
+1. Generate downloadable CSS patch files and GitHub pull requests for developer review.
+2. Integrate CSS candidate sandbox evaluation into the dashboard.
+3. Develop iterative repair and verification using broader UI defect categories.
+4. Expand semantic visual analysis and cross-browser testing.
+5. Provide downloadable PDF/HTML audit reports containing inspection history, repair outcomes, and visual evidence.
+6. Expand support for additional layout defects and responsive design patterns.
 
 ## 15. Author
 
-- **Student**: Sheefa J Pathan
-- **Branch**: BE Artificial Intelligence and Data Science
-- **Project**: OmniSight — Multimodal UI Self-Healing & RPA Agent
+- **Student:** Sheefa J Pathan
+- **Branch:** B.E. Artificial Intelligence and Data Science
+- **Institution:** DR. D Y PATIL TECHNICAL CAMPUS
+- **Project:** OmniSight — Multimodal UI Self-Healing & RPA Agent
+- **Project Type:** Individual Internship Project
