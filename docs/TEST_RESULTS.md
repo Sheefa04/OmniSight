@@ -1,7 +1,8 @@
 # OmniSight — Automated Test Results
 
 **Project:** OmniSight: Multimodal UI Self-Healing & RPA Agent
-**Test date:** 29 October 2026
+**Latest test date:** 5 November 2026
+**Historical test date:** 29 October 2026
 **Environment:** Python 3.12 virtual environment (`backend\.venv312`)
 **Test framework:** pytest
 
@@ -11,7 +12,7 @@
 .\backend\.venv312\Scripts\python.exe -m pytest tests -q
 ```
 
-## 2. Latest Recorded Result
+## 2. Historical Test Result — 29 October 2026
 
 - **Tests passed:** 69
 - **Tests failed:** 0
@@ -66,3 +67,19 @@ Additional backend validation tests for the `/vision-audit` endpoint:
 - `repair_applied: false` confirmed in all responses ✅
 
 See `docs/GEMINI_VISION_AUDIT.md` for the full integration documentation and actual Gemini findings.
+
+---
+
+## 8. Latest Verified Complete Test Run — 5 November 2026
+
+The complete automated test suite was executed using Python 3.12.10.
+
+- **Tests passed:** 74
+- **Tests failed:** 0
+- **Warnings:** 6
+- **Execution time:** 60.58 seconds
+- **Overall result:** PASS
+
+The six warnings were non-fatal Pillow deprecation warnings associated with screenshot processing. The latest observed warning location was `backend/main.py:1113`.
+
+The complete test suite validates the implemented application workflows. Passing tests do not guarantee that every possible website, browser configuration, or UI defect has been validated.
