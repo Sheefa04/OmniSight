@@ -307,20 +307,20 @@ The repair result can be reported as `resolved`, `partially_resolved`, or `not_r
 
 ## 12. Automated Testing and Verification
 
-Run the complete test suite from the project root with the virtual environment activated:
+Run the complete test suite from the project root using the Python 3.12 virtual environment:
 
 ```powershell
-python -m pytest -q
+python -m pytest tests -q
 ```
 
-### Latest verified test result — 5 November 2026
+### Latest verified test result — 10 November 2026
 
 | Result | Count |
 |---|---:|
 | Tests passed | 74 |
 | Tests failed | 0 |
 | Warnings | 6 |
-| Execution time | 60.58 seconds |
+| Execution time | 65.50 seconds |
 
 ### Test coverage
 
@@ -337,14 +337,14 @@ The test suite includes:
 
 ### Warning transparency
 
-The latest test run reported six non-blocking warnings related to Pillow's deprecated `Image.Image.getdata()` usage in the image comparison implementation. The method is scheduled for removal in Pillow 14.
+The 10 November 2026 test run reported six non-blocking Pillow deprecation warnings associated with `Image.Image.getdata()` in `backend/main.py` at line 1113. These warnings did not cause test failures. Review this usage before upgrading to a Pillow release that removes the deprecated API.
 
 ## 13. System Limitations and Transparency
 
 - **Session-bound repairs:** CSS changes are injected into a Playwright browser session and do not permanently modify target website files.
 - **Rule-based DOM detection:** The primary issue prioritization and detection logic uses deterministic DOM and computed-style rules; it is not a generative AI detector.
 - **Optional visual AI:** Gemini Vision is a separate screenshot-analysis capability. API key configuration and external service availability are required.
-- **Historical AI verification:** A live Gemini Vision API test was recorded on 31 October 2026. Current API availability has not been reverified on 5 November 2026.
+- **Historical AI verification:** A live Gemini Vision API test was recorded on 31 October 2026. Recent live API attempts on 10 November 2026 returned provider errors (HTTP 503/502); current Gemini service availability is therefore unconfirmed. The integration remains optional and must not be represented as a successful live analysis unless a fresh run succeeds.
 - **Backend-only sandbox integration:** CSS candidate evaluation exists in the backend; integration with the dashboard has not been verified.
 - **Repair scope:** The current repair workflow focuses on supported button layout and overflow conditions, not every possible visual defect.
 - **Network dependency:** External target websites must be reachable through HTTP/HTTPS.

@@ -1,109 +1,77 @@
 # OmniSight — Automated Test Results
 
 **Project:** OmniSight: Multimodal UI Self-Healing & RPA Agent
-**Latest test date:** 5 November 2026
-**Historical test date:** 29 October 2026
+**Latest verified complete test date:** 10 November 2026
 **Environment:** Python 3.12 virtual environment (`backend\.venv312`)
 **Test framework:** pytest
 
-## 1. Test Command
+## 1. Test command
+
+Run from the repository root:
 
 ```powershell
 .\backend\.venv312\Scripts\python.exe -m pytest tests -q
 ```
 
-## 2. Historical Test Result — 29 October 2026
+## 2. Latest verified complete test run — 10 November 2026
 
-- **Tests passed:** 69
-- **Tests failed:** 0
-- **Warnings:** 6
-- **Execution time:** 64.73 seconds
-- **Overall result:** PASS
+The complete automated test suite was executed using the Python 3.12 virtual environment.
 
-## 3. Warning Details
+| Result | Value |
+|---|---:|
+| Tests passed | **74** |
+| Tests failed | **0** |
+| Warnings | **6** |
+| Execution time | **65.50 seconds** |
+| Overall result | **PASS** |
 
-Six warning instances were reported from screenshot-comparison and viewport-related tests.
+The six warnings were non-fatal Pillow deprecation warnings associated with `Image.Image.getdata()` in `backend/main.py` at line 1113. They did not cause test failures. Review this usage before upgrading to a Pillow release that removes the deprecated API.
 
-The warning is a Pillow `DeprecationWarning` associated with `Image.Image.getdata()` in `backend/main.py` at line 818. Pillow indicates that this API is deprecated and is expected to be removed in version 14.
+Passing automated tests validate the tested workflows in this local environment. They do not, by themselves, prove that every possible target website, browser configuration, or visual repair has been manually validated.
 
-This warning did not cause the recorded test run to fail. It should be reviewed before upgrading to a Pillow version that removes the deprecated API.
+## 3. Historical complete test run — 5 November 2026
 
-## 4. Interpretation
+| Result | Value |
+|---|---:|
+| Tests passed | 74 |
+| Tests failed | 0 |
+| Warnings | 6 |
+| Execution time | 60.58 seconds |
+| Overall result | PASS |
 
-The recorded run confirms that all 69 collected tests passed in the tested local environment.
+The six warnings were non-fatal Pillow deprecation warnings associated with screenshot processing. The latest observed warning location in that run was `backend/main.py:1113`.
 
-Passing automated tests do not, by themselves, prove that every UI repair is visually correct or that every browser interaction has been manually verified.
+## 4. Historical complete test run — 29 October 2026
 
-## 5. Reproducibility
+| Result | Value |
+|---|---:|
+| Tests passed | 69 |
+| Tests failed | 0 |
+| Warnings | 6 |
+| Execution time | 64.73 seconds |
+| Overall result | PASS |
 
-Run the test command from the repository root using the Python 3.12 virtual environment. Record the date, pass/fail count, duration, and warnings for future final-review runs.
+This is a historical result and is not the latest test count.
 
-## 6. Status
+## 5. Historical focused workflow tests — 31 October 2026
 
-This document records the test output supplied during the final-review preparation. Re-run the complete suite before final submission and update this document if the result changes.
+The following focused tests were recorded after Gemini Vision frontend integration:
 
----
-
-## 7. Gemini Vision Audit Integration — 31 October 2026
-
-A new test run was executed after completing the Gemini Vision Audit frontend integration.
-
-**Command:**
-```powershell
-.\backend\.venv312\Scripts\python.exe -m pytest tests/test_omnisight_workflow.py tests/test_demo_store.py tests/test_compare_screenshots.py -v
-```
-
-**Result:**
-- **test_omnisight_workflow.py** — 10 passed
-- **test_demo_store.py** — 2 passed
-- **test_compare_screenshots.py** — 11 passed (4 Pillow DeprecationWarnings, non-fatal)
+- `test_omnisight_workflow.py`: 10 passed
+- `test_demo_store.py`: 2 passed
+- `test_compare_screenshots.py`: 11 passed (4 non-fatal Pillow deprecation warnings)
 - **Total: 23 passed, 0 failed**
 
-Additional backend validation tests for the `/vision-audit` endpoint:
-- Path traversal rejected (HTTP 400) ✅
-- Missing file rejected (HTTP 404) ✅
-- Subdirectory path rejected (HTTP 400) ✅
-- Live Gemini Vision API call with real screenshot ✅ — 2 genuine UI issues detected
-- `repair_applied: false` confirmed in all responses ✅
+Additional endpoint validation was recorded for invalid paths and missing files. A live Gemini Vision request on 31 October 2026 was recorded as successful and identified two UI issues. This is historical evidence only; it does not establish current provider availability.
 
-See `docs/GEMINI_VISION_AUDIT.md` for the full integration documentation and actual Gemini findings.
+## 6. Interpretation and limitations
 
----
-
-## 8. Latest Verified Complete Test Run — 5 November 2026
-
-The complete automated test suite was executed using Python 3.12.10.
-
-- **Tests passed:** 74
-- **Tests failed:** 0
-- **Warnings:** 6
-- **Execution time:** 60.58 seconds
-- **Overall result:** PASS
-
-The six warnings were non-fatal Pillow deprecation warnings associated with screenshot processing. The latest observed warning location was `backend/main.py:1113`.
-
-The complete test suite validates the implemented application workflows. Passing tests do not guarantee that every possible website, browser configuration, or UI defect has been validated.
+- The latest complete automated run is the 10 November 2026 result: **74 passed, 0 failed, 6 warnings, 65.50 seconds**.
+- Historical test results are retained for traceability and must not be labelled as the latest result.
+- Automated tests do not replace manual browser demonstration or visual review.
+- Gemini Vision is an optional external integration. Recent live API attempts on 10 November 2026 returned provider errors (HTTP 503/502), so current live availability is unconfirmed. Do not claim a successful current live Gemini analysis without a fresh successful run.
+- The Pillow warnings are non-fatal but should be addressed in a future maintenance change.
 
 ---
 
-## 9. Latest Verified Complete Test Run — 10 November 2026
-
-The complete automated test suite was executed using the Python 3.12 virtual environment (`backend\.venv312`).
-
-**Command:**
-```powershell
-.\backend\.venv312\Scripts\python.exe -m pytest tests -q
-```
-
-**Test Results:**
-- **Tests passed:** 74
-- **Tests failed:** 0
-- **Warnings:** 6
-- **Execution time:** 65.50 seconds
-- **Overall result:** PASS
-
-The six warnings were non-fatal Pillow deprecation warnings associated with `Image.Image.getdata()` in `backend/main.py` at line 1113.
-
-The complete test suite executed successfully with no test failures. These results validate the tested application workflows in the local environment.
-
-Passing automated tests do not, by themselves, guarantee that every possible website, browser configuration, or UI repair has been visually validated.
+**Record status:** Updated to reflect the latest verified complete test output supplied for 10 November 2026.
