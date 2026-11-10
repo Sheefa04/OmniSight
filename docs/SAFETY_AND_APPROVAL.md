@@ -45,7 +45,12 @@ A screenshot comparison highlights visual differences; it does not by itself pro
 
 The currently documented detection approach uses DOM and computed-style heuristics. These heuristics can identify likely UI problems but may produce false positives or miss some visual defects.
 
-Gemini Vision/VLM integration, automated post-repair verification, Git patch export, and downloadable report export are planned enhancements unless separately implemented and tested.
+The following implementation statuses should be stated accurately:
+
+- **Gemini Vision/VLM integration — implemented:** the backend and dashboard include the Gemini Vision audit workflow. Current live API availability is not confirmed; a historical successful live test was recorded on 31 October 2026, while a recent attempt encountered HTTP 503/502 errors.
+- **Automated post-repair verification — implemented:** the workflow includes checks for button containment, button text fit, text wrapping, and page horizontal overflow. Results still require review in the target browser and viewport.
+- **Git patch/PR export — future scope:** this is not a verified implemented feature.
+- **Downloadable report export — unverified/future scope:** a runtime downloadable audit-report workflow has not been verified.
 
 ## 7. Limitations
 

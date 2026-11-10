@@ -1,6 +1,6 @@
 # OmniSight — Gemini Vision Audit Integration
 
-**Feature completed:** 31 October 2026  
+**Feature completed:** 31 October 2026
 **Environment:** Python 3.12 (`backend\.venv312`), Gemini API (`gemini-3.8-flash`)
 
 ---
@@ -159,14 +159,14 @@ Screenshot used: `inspection_375x812_183eb0ff2c.png` (ShopHub mobile, 375×812)
 **Gemini summary:**
 > The store UI has visible text clipping on a product action button and inconsistent vertical alignment of CTA buttons within product cards.
 
-**Issue 1 (medium):** Truncated button label in Everyday Backpack card  
-- Location: Featured products grid, second row, left card  
-- Description: Button label clipped as "Add to Cart 🛒 Sp…" due to insufficient width  
+**Issue 1 (medium):** Truncated button label in Everyday Backpack card
+- Location: Featured products grid, second row, left card
+- Description: Button label clipped as "Add to Cart 🛒 Sp…" due to insufficient width
 - Suggestion: Allow button text to wrap or resize the button
 
-**Issue 2 (low):** Inconsistent vertical alignment of card action buttons  
-- Location: Product cards throughout the grid  
-- Description: Buttons follow price directly instead of anchoring to card bottom  
+**Issue 2 (low):** Inconsistent vertical alignment of card action buttons
+- Location: Product cards throughout the grid
+- Description: Buttons follow price directly instead of anchoring to card bottom
 - Suggestion: Use `display:flex; flex-direction:column` + `margin-top:auto` on button
 
 ---
@@ -183,3 +183,16 @@ Screenshot used: `inspection_375x812_183eb0ff2c.png` (ShopHub mobile, 375×812)
 - Gemini may occasionally interpret rendering artifacts or image compression as visual defects. All findings require human review.
 - The Gemini API requires network access. If the API is unavailable or returns an error, a descriptive error message is shown on the dashboard and no result is cached or fabricated.
 - The model name `gemini-3.8-flash` is fixed in `backend/main.py`. Update `GEMINI_MODEL` if a newer model is preferred.
+
+
+## Current API Availability — 10 November 2026
+
+The Gemini Vision integration is implemented in the backend and dashboard.
+
+A historical successful live Gemini Vision API test was recorded on 31 October 2026. However, current API availability has not been confirmed. A recent API attempt encountered provider/backend errors (HTTP 503/502).
+
+Therefore:
+- The integration should be described as implemented.
+- The historical successful API test should remain part of the historical evidence.
+- Current live API availability should not be claimed as verified.
+- When the API is unavailable, the application should report the error without fabricating audit findings or applying an automatic repair.
