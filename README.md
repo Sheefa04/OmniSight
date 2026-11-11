@@ -320,7 +320,7 @@ python -m pytest tests -q
 | Tests passed | 74 |
 | Tests failed | 0 |
 | Warnings | 6 |
-| Execution time | 65.50 seconds |
+| Execution time | 51.34 seconds |
 
 ### Test coverage
 

@@ -22,7 +22,7 @@ The complete automated test suite was executed using the Python 3.12 virtual env
 | Tests passed | **74** |
 | Tests failed | **0** |
 | Warnings | **6** |
-| Execution time | **65.50 seconds** |
+| Execution time | **51.34 seconds** |
 | Overall result | **PASS** |
 
 The six warnings were non-fatal Pillow deprecation warnings associated with `Image.Image.getdata()` in `backend/main.py` at line 1113. They did not cause test failures. Review this usage before upgrading to a Pillow release that removes the deprecated API.
@@ -66,7 +66,7 @@ Additional endpoint validation was recorded for invalid paths and missing files.
 
 ## 6. Interpretation and limitations
 
-- The latest complete automated run is the 10 November 2026 result: **74 passed, 0 failed, 6 warnings, 65.50 seconds**.
+- The latest complete automated run is the 11 November 2026 result: **74 passed, 0 failed, 6 warnings, 51.34 seconds**.
 - Historical test results are retained for traceability and must not be labelled as the latest result.
 - Automated tests do not replace manual browser demonstration or visual review.
 - Gemini Vision is an optional external integration. Recent live API attempts on 10 November 2026 returned provider errors (HTTP 503/502), so current live availability is unconfirmed. Do not claim a successful current live Gemini analysis without a fresh successful run.

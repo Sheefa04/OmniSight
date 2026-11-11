@@ -1,4 +1,4 @@
-﻿# OmniSight — Final Review Audit
+# OmniSight — Final Review Audit
 
 **Audit date:** 11 November 2026
 **Project:** OmniSight: Multimodal UI Self-Healing & RPA Agent
@@ -25,7 +25,7 @@
 - Tests passed: **74**
 - Tests failed: **0**
 - Warnings: **6**
-- Execution time: **65.50 seconds**
+- Execution time: **51.34 seconds**
 - Overall result: **PASS**
 
 The six non-fatal warnings relate to Pillow's deprecated `Image.Image.getdata()` method in screenshot processing. The latest observed warning location was `backend/main.py:1113`.
@@ -95,7 +95,7 @@ The following implementation elements have been verified in the project source:
 ## 6. Test Results
 
 - Latest verified automated test run: 74 passed, 0 failed.
-- Duration: 65.50 seconds.
+- Duration: 51.34 seconds.
 - Six non-fatal Pillow deprecation warnings were reported for `Image.Image.getdata()` at `backend/main.py:1113`.
 - The test result documents were updated to reflect the verified test run.
 
